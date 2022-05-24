@@ -58,4 +58,9 @@ void Platform::WrangleExportedEntry(const char* functionName, void* target) {
 }
 
 
+void Platform::FatalError(const char* msg, const char* title) {
+    MessageBox(0, msg, title, MB_OK | MB_ICONERROR);
+    ExitProcess(1);
+}
+
 

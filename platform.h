@@ -37,6 +37,8 @@ struct Platform{
 	bool Init();
 	void GetRect(int* w, int* h);
 	void* Wrangle(const char* functionName);
+	void FatalError(void);
+	
 
 }
 

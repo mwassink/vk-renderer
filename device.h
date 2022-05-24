@@ -29,19 +29,24 @@ struct BufferParams {
 };
 
 
+
 struct VulkanContext {
-
-};
-
-
-
-struct VulkanDevice {
 	Platform pform;
 	VkDevice device;
+
+
+
+
+	bool validationLayers;
+
+	VulkanContext();
+
 	bool LoadExportedFunctions(void);
 	bool LoadExportedFns(void);
 	bool LoadGlobalFns(void);
 	bool LoadInstanceFns(void);
+	bool Init(bool);
+
 
 	
 
