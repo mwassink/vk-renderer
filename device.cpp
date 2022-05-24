@@ -7,3 +7,27 @@
 #define VK_DEVICE_LEVEL_FUNCTION( fun ) PFN_##fun fun;
 #include "functionslist.h"
 
+
+
+#include "device.h"
+
+bool VulkanDevice::LoadExportedFns(void) {
+	#define VK_E_FN( fun ) fun = pform.Wrangle(#fun); if (!fun) { printf("Failed to load %s", #fun); return false;}
+	#include "functionslist.h"
+	return true;
+}
+
+bool VulkanDevice::LoadGlobalFns(void) {
+	#define VK_G_FN ( fun ) fun = (PFN_##fun)vkGetInstanceLevelProcAddress(nullptr, #fun); if (!fun) {printf("Failed to load %s", #fun); return false;}
+	#include "functionslist.h"
+	return true;
+}
+
+bool VulkanDevice::LoadInstanceFns(void) {
+	#define VK_I_FN ( fun ) fun = (PFN_##fun)vkGetInstanceLevelProcAddress(instance, #fun); if (!fun) {printf("Failed to load %s", #fun); return false;}
+	#include "functionslist.h"
+	return true;
+}
+
+
+bool CreateInstance
