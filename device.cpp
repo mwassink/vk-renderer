@@ -82,6 +82,25 @@ bool VulkanContext::ExtensionAvail(std::vector<VkExtensionProperties>& extension
     return false;
 }
 
+bool VulkanContext::CheckMajor(int version) {
+    return true;
+}
+
+bool VulkanContext::CheckProperties(VkPhysicalDeviceProperties& props) {
+    int minor = VK_VERSION_MAJOR(props.apiVersion);
+    return CheckMajor(minor);
+}
+
+
+bool VulkanContext::CheckFeatures(VkPhysicalDeviceFeatures& features) {
+    return true;
+}
+
+
+bool VulkanContext::CheckQueues(VkPhysicalDevice& dev) {
+    u32 numFamilies;
+    
+}
 
 void VulkanContext::Init(bool validationLayers) {
 	if (debugLayers) {
@@ -92,7 +111,8 @@ void VulkanContext::Init(bool validationLayers) {
 	if (vkEnumerateInstanceExtensionProperties(nullptr, &numAvail, nullptr) != VK_SUCCESS) {
 		FatalError("Issue when finding the number of extensions");
 	}
-	std::vector<const char*> instanceExtensions  = { platformSurfaceExtensionName, surfaceExtensionName, swapChainExtensionName}; // one of these doesn't belong
+	std::vector<const char*> instanceExtensions  = { platformSurfaceExtensionName, surfaceExtensionName}; // one of these doesn't belong
+    std::vector<const char*> deviceExtensions = { swapChainExtensionName};
     std::vector<VkExtensionProperties> availableExtensions(&numAvail);
     
     if (vkEnumerateInstanceExtensionProperties(nullptr, &numAvail, &instanceExtensions[0]) != VK_SUCCESS) {
@@ -141,6 +161,42 @@ void VulkanContext::Init(bool validationLayers) {
     std::vector<VkPhysicalDevice> physDevs(numDevices);
     ENSURE_SUCC (vkEnumeratePhysicalDevices(instance, &numDevices, &physDevs));
     VkPhysicalDevice selectedDevice = VK_NULL_HANDLE;
+
+    // Loop over with all of the devices to see if an of them are good
+    bool found = 0;
+    for (u32 i  = 0; i < numDevices; i++) {
+        // Check if the device is OK
+        u32 numPhysExtensions;
+        auto& dev = physDevs[i];
+        if (vkEnumerateExtensionProperties (dev, nullptr, &numPhysExtensions, nullptr) != VK_SUCCESS) continue;
+        std::vector<VkExtensionProperties> availExtensions(numPhysExtensions);
+        if (vkEnumerateExtensionProperties (dev, nullptr, &numPhysExtensions, &availExtensions[0]) != VK_SUCCESS) continue;
+
+        for (u32 j = 0; j < deviceExtensions.size(); j++) {
+            if ( !ExtensionAvail(  availExtensions, deviceExtensions[j] ) ) {
+                continue;
+            }
+        }
+        
+        // check for properies and features
+        VkPhysicalDeviceProperties props;
+        VkPhysicalDeviceFeatures features;
+
+        vkGetPhysicalDeviceProperties(dev, props);
+        vkGetPhysicalDeviceFeatures(dev, features);
+        if (!CheckProperties(props))
+            continue;
+        if (!CheckFeatures(props)) {
+            continue;
+        }
+        
+        
+        
+    }
+
+    
+
+    
     
     
 
