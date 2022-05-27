@@ -3,6 +3,12 @@
 // Neew windows to implement some of these
 #include <windows.h>
 #include "platform.h"
+#include "vulkan.h"
+
+const_char* swapChainExtensionName = VK_KHR_SWAPCHAIN_EXTENSION_NAME ;
+const_char* surfaceExtensionName = VK_KHR_SURFACE_EXTENSION_NAME ;
+const_char* platformSurfaceExtensionName= VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
+
 
 bool Window::Create(const char* title) {
     Instance = GetModuleHandle(nullptr);
@@ -17,7 +23,7 @@ bool Window::Create(const char* title) {
     wcex.hCursor = LoadCursor( NULL, IDC_ARROW );
     wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wcex.lpszMenuName = NULL;
-    wcex.lpszClassName = "Mark Vulkan";
+    wcex.lpszClassName = "Vulkan Renderer";
     wcex.hIconSm = NULL;
     
     if( !RegisterClassEx( &wcex ) ) {
@@ -25,7 +31,7 @@ bool Window::Create(const char* title) {
     }
     
     // Create window
-    Handle = CreateWindow( "Mark Vulkan", title, WS_OVERLAPPEDWINDOW, 20, 20, 500, 500, nullptr, nullptr, Instance, nullptr );
+    Handle = CreateWindow( "Vulkan Renderer", title, WS_OVERLAPPEDWINDOW, 20, 20, 500, 500, nullptr, nullptr, Instance, nullptr );
     if( !Handle ) {
         return false;
     }
@@ -61,6 +67,10 @@ void Platform::WrangleExportedEntry(const char* functionName, void* target) {
 void Platform::FatalError(const char* msg, const char* title) {
     MessageBox(0, msg, title, MB_OK | MB_ICONERROR);
     ExitProcess(1);
+}
+
+void Platform::PopupWarning(const char* msg, const char* title) {
+    MessageBox(0, msg, title, MB_OK | MB_ICONWARNING);
 }
 
 

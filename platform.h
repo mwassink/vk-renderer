@@ -3,6 +3,10 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
+extern const_char* swapChainExtensionName;
+extern const_char* surfaceExtensionName;
+extern const_char* platformSurfaceExtensionName;
+
 
 #ifdef WIN32
 struct Window {
@@ -38,7 +42,9 @@ struct Platform{
 	void GetRect(int* w, int* h);
 	void* Wrangle(const char* functionName);
 	void FatalError(void);
+	void PopupWarning(const char* msg, const char* title);
 	
+
 
 }
 

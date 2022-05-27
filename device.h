@@ -33,11 +33,12 @@ struct BufferParams {
 struct VulkanContext {
 	Platform pform;
 	VkDevice device;
+    VkInstance instance;
 
 
 
 
-	bool validationLayers;
+	bool debugLayers;
 
 	VulkanContext();
 
