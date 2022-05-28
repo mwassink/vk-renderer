@@ -316,7 +316,12 @@ void VulkanContext::Swapchain(void) {
     ext = { clamp(sCaps.minImageExtent.width, sCaps.maxImageExtent.width,w ),
         clamp(ext.sCaps.minImageExtent.height, ext.sCaps.maxImageExtent.height, h)};
 
-    
+    VkImageUsageFlags flags =  VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    if (caps->supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) {
+        FatalError("Unable to get proper flags", "Vulkan Swapchain Creation Error");
+    }
+
+    VkSurfaceTransformFlagBitsKHR 
     
     
     
