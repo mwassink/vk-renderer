@@ -11,9 +11,9 @@ extern const_char* platformSurfaceExtensionName;
 #ifdef WIN32
 struct Window {
     
-    HINSTANCE Instance =0;
-    HWND Handle = 0;
-    bool Renderable = false;
+    HINSTANCE inst =0;
+    HWND handle = 0;
+    bool renderable = false;
     
    	bool Create(void);
    	void Show();

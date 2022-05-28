@@ -1,5 +1,6 @@
 // 05/23/2022
 
+#define NUM_IMAGES 3
 
 struct QueueParams {
 	VkQueue handle;
@@ -10,12 +11,7 @@ struct QueueParams {
 	}
 };
 
-struct ImageParams {
-	VkImage imageHandle;
-	VkImageView imageView;
-	VkSampler sampler;
-	VkDeviceMemory memory;
-};
+
 
 struct BufferParams {
 	VkBuffer handle;
@@ -28,13 +24,24 @@ struct BufferParams {
 	}
 };
 
+struct Image {
+    VkImage handle;
+    VkImageView view;
+    vkSampler sampler;
+    VkDeviceMemory mem;
 
+};
 
 struct VulkanContext {
 	Platform pform;
-	VkDevice device;
-    VkInstance instance;
-
+	VkDevice device = VK_NULL_HANDLE;
+    VkInstance instance = VK_NULL_HANDLE;
+    VkSurfaceKHR surf = VK_NULL_HANDLE;
+    VkPhysicalDevice gpu = VK_NULL_HANDLE;
+    VkDevice dev;
+    u32 gqFamilyIndex;
+    Images images[NUM_IMAGES];
+    VKExtent2D ext;
 
 
 
@@ -46,7 +53,9 @@ struct VulkanContext {
 	bool LoadExportedFns(void);
 	bool LoadGlobalFns(void);
 	bool LoadInstanceFns(void);
-	bool Init(bool);
+	void Device(bool debuglayers);
+    void Swapchain(void);
+    void RecreateSwapchain(void);
 
 
 	
