@@ -3,9 +3,9 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
-extern const_char* swapChainExtensionName;
-extern const_char* surfaceExtensionName;
-extern const_char* platformSurfaceExtensionName;
+extern const char* swapChainExtensionName;
+extern const char* surfaceExtensionName;
+extern const char* platformSurfaceExtensionName;
 
 
 #ifdef WIN32
@@ -23,7 +23,7 @@ struct Window {
 };
 
 
-typedef ModuleHandle HMODULE;
+typedef HMODULE ModuleHandle ;
 
 #else
 
@@ -46,6 +46,6 @@ struct Platform{
 	
 
 
-}
+};
 
 #endif //PLATFORM_H

@@ -1,10 +1,10 @@
 // Does the device setup necessary for Vulkan
 #include "vulkan.h"
 
-#define VK_EXPORTED_FUNCTION( fun ) PFN_##fun fun;
-#define VK_GLOBAL_LEVEL_FUNCTION( fun ) PFN_##fun fun;
-#define VK_INSTANCE_LEVEL_FUNCTION( fun ) PFN_##fun fun;
-#define VK_DEVICE_LEVEL_FUNCTION( fun ) PFN_##fun fun;
+#define VK_E_FN( fun ) PFN_##fun fun;
+#define VK_G_FN( fun ) PFN_##fun fun;
+#define VK_IN_FN( fun ) PFN_##fun fun;
+#define VK_D_FN( fun ) PFN_##fun fun;
 #include "functionslist.h"
 
 
@@ -14,7 +14,7 @@
 #include <vector>
 #include <string.h>
 
-char [1000] errString;
+char errString[1000];
 
 
 #define ENSURE_SUCC( expr ) if ( (expr) != VK_SUCCESS) {snprintf(errString, 1000, "Failed to do %s", #expr); FatalError(errString, "Vulkan Error"); }

@@ -1,7 +1,11 @@
 // 05/23/2022
 
+#ifndef DEVICE_H
+#define DEVICE_H
 #define NUM_IMAGES 3
 
+#include "platform.h"
+#include "types.h"
 struct QueueParams {
 	VkQueue handle;
 	uint32_t familyIndex; // e.g present or graphics
@@ -15,7 +19,7 @@ struct SwapchainData {
     VkSwapchainKHR handle;
     VkFormat format;
     VkDeviceMemory memory;
-}
+};
 
 
 struct BufferParams {
@@ -32,7 +36,7 @@ struct BufferParams {
 struct Image {
     VkImage handle;
     VkImageView view;
-    vkSampler sampler;
+    VkSampler sampler;
     VkDeviceMemory mem;
 
 };
@@ -45,8 +49,8 @@ struct VulkanContext {
     VkPhysicalDevice gpu = VK_NULL_HANDLE;
     VkDevice dev;
     u32 gqFamilyIndex;
-    Images images[NUM_IMAGES];
-    VKExtent2D ext;
+    Image images[NUM_IMAGES];
+    VkExtent2D ext;
     SwapchainData sc;
 
 
@@ -67,7 +71,4 @@ struct VulkanContext {
 
 };
 
-
-
-
-
+#endif
