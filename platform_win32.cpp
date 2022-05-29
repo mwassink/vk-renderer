@@ -5,12 +5,12 @@
 #include "platform.h"
 #include "vulkan.h"
 
-const_char* swapChainExtensionName = VK_KHR_SWAPCHAIN_EXTENSION_NAME ;
-const_char* surfaceExtensionName = VK_KHR_SURFACE_EXTENSION_NAME ;
-const_char* platformSurfaceExtensionName= VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
+const char* swapChainExtensionName = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+const char* surfaceExtensionName = VK_KHR_SURFACE_EXTENSION_NAME;
+const char* platformSurfaceExtensionName= VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
 
 
-LRESULT WindowCallback(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_SIZE:
         case WM_EXITSIZEMOVE:
@@ -32,14 +32,14 @@ LRESULT WindowCallback(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
 
 
 bool Window::Create(const char* title) {
-    Instance = GetModuleHandle(nullptr);
+    inst = GetModuleHandle(nullptr);
     WNDCLASSEX wcex;
     wcex.cbSize = sizeof(WNDCLASSEX);
     wcex.style = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc = WindowCallback;
+    wcex.lpfnWndProc = WndProc;
     wcex.cbClsExtra = 0;
     wcex.cbWndExtra = 0;
-    wcex.hInstance = Instance;
+    wcex.hInstance = inst;
     wcex.hIcon = NULL;
     wcex.hCursor = LoadCursor( NULL, IDC_ARROW );
     wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
@@ -52,8 +52,8 @@ bool Window::Create(const char* title) {
     }
     
     // Create window
-    Handle = CreateWindow( "Vulkan Renderer", title, WS_OVERLAPPEDWINDOW, 20, 20, 500, 500, nullptr, nullptr, Instance, nullptr );
-    if( !Handle ) {
+    handle = CreateWindow( "Vulkan Renderer", title, WS_OVERLAPPEDWINDOW, 20, 20, 500, 500, nullptr, nullptr, inst, nullptr );
+    if( !handle ) {
         return false;
     }
     
@@ -66,10 +66,10 @@ void Platform::GetRect(int* w, int* h) {
 }
 
 void Window::GetRect(int* w, int* h) {
-		RECT rect;
-		GetWindowRect(window.Handle, &rect);
-		*w = ext.width;
-		*h = ext.height;
+    RECT rect;
+    GetWindowRect(handle, &rect);
+    *w = rect.right - rect.left;
+    *h = rect.bottom - rect.top;
 }
 
 bool Platform::Init() {
@@ -78,18 +78,20 @@ bool Platform::Init() {
     }
 	vkLib = LoadLibrary("vulkan-1.dll");
 	if (!vkLib) {
-		printf("Unable to init vulkan library");
+		FatalError("Unable to init vulkan library", "Init Error");
 		return false;
 	}
 	return true;
 }
 
 
-void Platform::WrangleExportedEntry(const char* functionName, void* target) {
-	target = LoadProcAddress(vkLib, functionName);
-	return (target != nullptr);
-
+void* Platform::WrangleExportedEntry(const char* functionName) {
+	void* target = (void*)GetProcAddress(vkLib, functionName);
+    return target;
+    
 }
+
+
 
 
 void Platform::FatalError(const char* msg, const char* title) {

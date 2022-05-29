@@ -8,16 +8,18 @@ extern const char* surfaceExtensionName;
 extern const char* platformSurfaceExtensionName;
 
 
-#ifdef WIN32
+#ifdef _WIN32
+#include <windows.h>
 struct Window {
-    
+
     HINSTANCE inst =0;
     HWND handle = 0;
     bool renderable = false;
     
-   	bool Create(void);
+   	bool Create(const char*);
    	void Show();
    	void Update();
+    void GetRect(int* w, int* h);
 
 
 };
@@ -29,7 +31,7 @@ typedef HMODULE ModuleHandle ;
 
 struct Window {
 	// some Lunix stuff here?
-}
+};
 
 
 #endif
@@ -41,9 +43,9 @@ struct Platform{
 	bool Init();
 	void GetRect(int* w, int* h);
 	void* Wrangle(const char* functionName);
-	void FatalError(void);
+	void FatalError(const char*, const char* );
 	void PopupWarning(const char* msg, const char* title);
-	
+	void* WrangleExportedEntry(const char* functionName);
 
 
 };

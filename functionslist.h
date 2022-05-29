@@ -40,7 +40,7 @@ VK_IN_FN( vkGetPhysicalDeviceQueueFamilyProperties )
 VK_IN_FN( vkCreateDevice )
 VK_IN_FN( vkGetDeviceProcAddr )
 VK_IN_FN( vkEnumerateDeviceExtensionProperties )
-
+VK_IN_FN( vkGetPhysicalDeviceMemoryProperties )
 #undef VK_IN_FN
 
 #if !defined(VK_D_FN)
@@ -62,6 +62,8 @@ VK_D_FN( vkQueueSubmit )
 VK_D_FN( vkFreeCommandBuffers )
 VK_D_FN( vkDestroyCommandPool )
 VK_D_FN( vkDestroySemaphore )
+
+
 #if defined(USE_SWAPCHAIN_EXTENSIONS)
 VK_D_FN( vkCreateSwapchainKHR )
 VK_D_FN( vkGetSwapchainImagesKHR )
@@ -108,6 +110,5 @@ VK_D_FN(vkDestroyFence)
 
 #endif
 
-VK_D_FN(vkGetPhysicalDeviceMemoryProperties)
 
 #undef VK_D_FN

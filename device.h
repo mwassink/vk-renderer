@@ -6,6 +6,9 @@
 
 #include "platform.h"
 #include "types.h"
+#include "vulkan.h"
+
+
 struct QueueParams {
 	VkQueue handle;
 	uint32_t familyIndex; // e.g present or graphics
@@ -17,7 +20,7 @@ struct QueueParams {
 
 struct SwapchainData {
     VkSwapchainKHR handle;
-    VkFormat format;
+    VkSurfaceFormatKHR format;
     VkDeviceMemory memory;
 };
 
@@ -38,7 +41,7 @@ struct Image {
     VkImageView view;
     VkSampler sampler;
     VkDeviceMemory mem;
-
+    
 };
 
 struct VulkanContext {
@@ -52,23 +55,34 @@ struct VulkanContext {
     Image images[NUM_IMAGES];
     VkExtent2D ext;
     SwapchainData sc;
-
-
-	bool debugLayers;
-
-	VulkanContext();
-
+    
+    
+	bool debugLayersOn;
+    
+	VulkanContext() {}
+    
 	bool LoadExportedFunctions(void);
 	bool LoadExportedFns(void);
 	bool LoadGlobalFns(void);
 	bool LoadInstanceFns(void);
+    bool LoadDevFns(void);
 	void Device(bool debuglayers);
     void Swapchain(void);
+    void CheckDebugLayers(void);
     
-
-
+    int EnsureSuperset(Vector<VkLayerProperties>& given, Vector<const char*>& wanted);
+    bool ExtensionAvail(Vector<VkExtensionProperties>& extensions, const char* extension);
+    bool CheckMajor(int version);
+    bool CheckProperties(VkPhysicalDeviceProperties& props);
+    bool CheckFeatures(VkPhysicalDeviceFeatures& features);
+    
+    //bool CheckQueues(VkPhysicalDevice& dev);
+    
+    void Init(void);
+    
+    
 	
-
+    
 };
 
 #endif
