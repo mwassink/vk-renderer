@@ -11,6 +11,11 @@ struct QueueParams {
 	}
 };
 
+struct SwapchainData {
+    VkSwapchainKHR handle;
+    VkFormat format;
+    VkDeviceMemory memory;
+}
 
 
 struct BufferParams {
@@ -42,7 +47,7 @@ struct VulkanContext {
     u32 gqFamilyIndex;
     Images images[NUM_IMAGES];
     VKExtent2D ext;
-
+    SwapchainData sc;
 
 
 	bool debugLayers;
@@ -55,7 +60,7 @@ struct VulkanContext {
 	bool LoadInstanceFns(void);
 	void Device(bool debuglayers);
     void Swapchain(void);
-    void RecreateSwapchain(void);
+    
 
 
 	

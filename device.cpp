@@ -321,12 +321,108 @@ void VulkanContext::Swapchain(void) {
         FatalError("Unable to get proper flags", "Vulkan Swapchain Creation Error");
     }
 
-    VkSurfaceTransformFlagBitsKHR 
+    VkSurfaceTransformFlagBitsKHR transform = (sCaps->supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR) ? VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR : sCaps->currentTransform;
+    VkPresentModeKHR presMode = static_cast<VkPresentModeKHR>(-1);
+    bool found = false, satisfied = false;
+    for (u64 i = 0; i < presentModes.size(); i++ ) {
+        if (modes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
+            presMode = modes[i];
+            found = true;
+        } else if (modes[i] == VK_PRESENT_MODE_FIFO_KHR && !found ) {
+            presMode = modes[i];
+            satisfied = true ;
+        }
+    }
+
+    if (!satisfied && !found) {
+        FatalError("Not able to get a suitable mode without screen tearing");
+    }
+
+
+    auto oldHandle = sc.handle;
+
+    VkSwapchainCreateInfoKHR scCreateInfo = {
+        VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        nullptr,
+        0,
+        surf,
+        NUM_IMAGES,
+        wantedFormat.format,
+        wantedFormat.colorSpace,
+        ext,
+        1,
+        flags,
+        VK_SHARING_MODE_EXCLUSIVE,
+        0,
+        nullptr,
+        transform,
+        VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        presMode,
+        VK_TRUE,
+        oldHandle
+    };
+
+
+    sc.format = format;
+
+    ENSURE_SUCC ( vkCreateSwapchainKHR(dev, scCreateInfo, nullptr, sc.handle)   );
     
+        
+    if (oldHandle == VK_NULL_HANDLE) {
+        // Destroy the old swapchain
+        vkDestroySwapchainKHR(dev, oldHandle, nullptr);
+    }
+
+    u32 numactual;
+
+    auto res = vkGetSwapchainImagesKHR(dev, sc.handle, &numactual, nullptr);
+    if ( res != VK_SUCCESS || numactual != NUM_IMAGES) {
+        FatalError("Error with initialization of swapchain", "Swapchain creation Error!");
+    }
+
+    VkImage tmp_images[3];
+
+    ENSURE_SUCC (vkGetSwapchainImagesKHR(dev, sc.handle, &numactual, &tmp_images[0] ));
+
+    for (int i = 0; i < numactual; i++) {
+        images.handle = images[i];
+    }
+
     
+    for (int i = 0; i < NUM_IMAGES; i++ ) {
+        VkImageViewCreateInfo = {
+            VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO, nullptr, 0, images[i].handle,
+            VK_IMAGE_VIEW_TYPE_2D, sc.format,
+                       
+            
+            {
+                VK_COMPONENT_SWIZZLE_IDENTITY,
+                VK_COMPONENT_SWIZZLE_IDENTITY,
+                VK_COMPONENT_SWIZZLE_IDENTITY,
+                VK_COMPONENT_SWIZZLE_IDENTITY
+            },
+            // VkImageSubresourceRange
+            {
+                VK_IMAGE_ASPECT_COLOR_BIT,
+                0,
+                1,
+                0,
+                1
+            }
+        };
+
+        ENSURE_SUCC (vkCreateImageView(dev, &createInfo, nullptr, images[i].view));
+        
+    }
+    pform.window.renderable = true;
     
     
 }
 
 
+void VulkanContext::Init(void) {
+    pform.Init();
+    Device(true);
+    Swapchain();
+}
 
