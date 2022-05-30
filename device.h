@@ -9,6 +9,14 @@
 #include "vulkan.h"
 
 
+struct PerFrameData {
+    VkFramebuffer framebuffer;
+    VkCommandBuffer commandBuffer;
+    VkSemaphore renderingReady;
+    VkSemaphore presentReady;
+    VkFence fence;
+};
+
 struct QueueParams {
 	VkQueue handle;
 	uint32_t familyIndex; // e.g present or graphics
@@ -19,7 +27,7 @@ struct QueueParams {
 };
 
 struct SwapchainData {
-    VkSwapchainKHR handle;
+    VkSwapchainKHR handle = VK_NULL_HANDLE;
     VkSurfaceFormatKHR format;
     VkDeviceMemory memory;
 };
@@ -44,17 +52,24 @@ struct Image {
     
 };
 
+// (TODO) learn what can be done individually on each thread
 struct VulkanContext {
 	Platform pform;
 	VkDevice device = VK_NULL_HANDLE;
     VkInstance instance = VK_NULL_HANDLE;
     VkSurfaceKHR surf = VK_NULL_HANDLE;
     VkPhysicalDevice gpu = VK_NULL_HANDLE;
+
     VkDevice dev;
     u32 gqFamilyIndex;
+    VkQueue graphicsPresentQueue;
     Image images[NUM_IMAGES];
     VkExtent2D ext;
     SwapchainData sc;
+
+    VkCommandPool cmdPool = VK_NULL_HANDLE;
+    PerFrameData frameResources[NUM_IMAGES];
+    
     
     
 	bool debugLayersOn;
@@ -79,7 +94,9 @@ struct VulkanContext {
     //bool CheckQueues(VkPhysicalDevice& dev);
     
     void Init(void);
-    
+    void CreateCmdPool(VkCommandPoolCreateFlags flags);
+    void AllocCmdBuffers(void);
+    void Semaphores(void);
     
 	
     

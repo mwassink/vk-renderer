@@ -449,8 +449,25 @@ void VulkanContext::Swapchain(void) {
     pform.window.renderable = true;
     
     
+    
+    
 }
 
+
+
+void VulkanContext::Semaphores(void) {
+    VkSemaphoreCreateInfo semInfo = {
+        VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+        nullptr,
+        0
+    };
+
+    for (int i = 0; i < NUM_IMAGES; i++ ) {
+        ENSURE_SUCC (vkCreateSemaphore(dev, &semInfo, nullptr, &frameResources[i].renderingReady));
+        ENSURE_SUCC (vkCreateSemaphore(dev, &semInfo, nullptr, &frameResources[i].presentReady));
+    }
+    
+}
 
 void VulkanContext::Init(void) {
     pform.Init();
@@ -458,5 +475,41 @@ void VulkanContext::Init(void) {
     LoadGlobalFns();
     Device(true);
     Swapchain();
+    vkGetDeviceQueue(dev, gqFamilyIndex, 0, &graphicsPresentQueue);
+    Semaphores();    
+    AllocCmdBuffers();
+    
 }
 
+void VulkanContext::CreateCmdPool(VkCommandPoolCreateFlags flags) {
+    VkCommandPoolCreateInfo createInfo = {
+        VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        nullptr,
+        flags,
+        gqFamilyIndex
+    };
+
+    if (vkCreateCommandPool(dev, &createInfo, nullptr, &cmdPool) != VK_SUCCESS) {
+        pform.FatalError("Unable to create command pools", "Vulkan Command Pool Error");
+    }
+}
+
+// (TODO) maybe some sort of advanced args or something
+void VulkanContext::AllocCmdBuffers(void) {
+    CreateCmdPool(VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT | VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
+
+    for (u64 i = 0; i <  NUM_IMAGES; i++ ) {
+        VkCommandBufferAllocateInfo cbAllocInfo = {
+            VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            nullptr,
+            cmdPool,
+            VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            1
+        };
+        ENSURE_SUCC ( vkAllocateCommandBuffers(dev, &cbAllocInfo, &frameResources[i].commandBuffer));
+        
+    }
+
+    
+    
+}
