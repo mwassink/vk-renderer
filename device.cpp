@@ -478,6 +478,7 @@ void VulkanContext::Init(void) {
     vkGetDeviceQueue(dev, gqFamilyIndex, 0, &graphicsPresentQueue);
     Semaphores();    
     AllocCmdBuffers();
+    Fences();
     
 }
 
@@ -513,3 +514,29 @@ void VulkanContext::AllocCmdBuffers(void) {
     
     
 }
+
+void VulkanContext::Fences(void) {
+    VkFenceCreateInfo fenceCreateInfo = {
+        VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        nullptr,
+        VK_FENCE_CREATE_SIGNALED_BIT
+    };
+
+    for (int i = 0; i < NUM_IMAGES; i++) {
+        ENSURE_SUCC( vkCreateFence(dev, &fenceCreateInfo, nullptr, &frameResources[i].fence));
+    }
+}
+
+VulkanContext::~VulkanContext() {
+    Cleanup();
+}
+
+
+void VulkanContext::Cleanup() {
+    // (TODO) make this actually clean up
+}
+
+
+
+
+

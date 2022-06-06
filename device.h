@@ -9,14 +9,6 @@
 #include "vulkan.h"
 
 
-struct PerFrameData {
-    VkFramebuffer framebuffer;
-    VkCommandBuffer commandBuffer;
-    VkSemaphore renderingReady;
-    VkSemaphore presentReady;
-    VkFence fence;
-};
-
 struct QueueParams {
 	VkQueue handle;
 	uint32_t familyIndex; // e.g present or graphics
@@ -26,23 +18,15 @@ struct QueueParams {
 	}
 };
 
-struct SwapchainData {
-    VkSwapchainKHR handle = VK_NULL_HANDLE;
-    VkSurfaceFormatKHR format;
-    VkDeviceMemory memory;
+
+struct PerFrameData {
+    VkFramebuffer framebuffer;
+    VkCommandBuffer commandBuffer;
+    VkSemaphore renderingReady;
+    VkSemaphore presentReady;
+    VkFence fence;
 };
 
-
-struct BufferParams {
-	VkBuffer handle;
-	VkDeviceMemory memory;
-	uint32_t size;
-	BufferParams() {
-		handle = VK_NULL_HANDLE;
-		memory = VK_NULL_HANDLE;
-		size = 0;
-	}
-};
 
 struct Image {
     VkImage handle;
@@ -52,15 +36,24 @@ struct Image {
     
 };
 
+
+struct SwapchainData {
+    VkSwapchainKHR handle = VK_NULL_HANDLE;
+    VkSurfaceFormatKHR format;
+    VkDeviceMemory memory;
+};
+
+
+
 // (TODO) learn what can be done individually on each thread
 struct VulkanContext {
 	Platform pform;
-	VkDevice device = VK_NULL_HANDLE;
+
     VkInstance instance = VK_NULL_HANDLE;
     VkSurfaceKHR surf = VK_NULL_HANDLE;
     VkPhysicalDevice gpu = VK_NULL_HANDLE;
 
-    VkDevice dev;
+    VkDevice dev = VK_NULL_HANDLE;
     u32 gqFamilyIndex;
     VkQueue graphicsPresentQueue;
     Image images[NUM_IMAGES];
@@ -75,6 +68,8 @@ struct VulkanContext {
 	bool debugLayersOn;
     
 	VulkanContext() {}
+    ~VulkanContext();
+    
     
 	bool LoadExportedFunctions(void);
 	bool LoadExportedFns(void);
@@ -97,7 +92,8 @@ struct VulkanContext {
     void CreateCmdPool(VkCommandPoolCreateFlags flags);
     void AllocCmdBuffers(void);
     void Semaphores(void);
-    
+    void Fences(void);
+    void Cleanup(void);
 	
     
 };

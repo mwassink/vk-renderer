@@ -1,5 +1,4 @@
-// These include guards make it so that we only include the thing once
-// We do  not want to include random junk in the middle of the functions
+
 #if !defined(VK_E_FN)
 #define VK_E_FN( fun )
 #endif
@@ -62,7 +61,8 @@ VK_D_FN( vkQueueSubmit )
 VK_D_FN( vkFreeCommandBuffers )
 VK_D_FN( vkDestroyCommandPool )
 VK_D_FN( vkDestroySemaphore )
-
+VK_D_FN( vkCreateBuffer )
+VK_D_FN( vkGetBufferMemoryRequirements )
 
 #if defined(USE_SWAPCHAIN_EXTENSIONS)
 VK_D_FN( vkCreateSwapchainKHR )
@@ -70,6 +70,7 @@ VK_D_FN( vkGetSwapchainImagesKHR )
 VK_D_FN( vkAcquireNextImageKHR )
 VK_D_FN( vkQueuePresentKHR )
 VK_D_FN( vkDestroySwapchainKHR )
+#endif
 
 VK_D_FN( vkCreateImageView )
 VK_D_FN( vkCreateRenderPass )
@@ -90,8 +91,6 @@ VK_D_FN( vkDestroyImageView )
 
 
 VK_D_FN(vkCreateFence)
-VK_D_FN(vkCreateBuffer)
-VK_D_FN(vkGetBufferMemoryRequirements)
 VK_D_FN(vkAllocateMemory)
 VK_D_FN(vkBindBufferMemory)
 VK_D_FN(vkMapMemory)
@@ -106,9 +105,6 @@ VK_D_FN(vkFreeMemory)
 VK_D_FN(vkDestroyBuffer)
 VK_D_FN(vkDestroyFence)
 
-
-
-#endif
 
 
 #undef VK_D_FN
