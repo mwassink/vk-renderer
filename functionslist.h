@@ -72,6 +72,7 @@ VK_D_FN( vkQueuePresentKHR )
 VK_D_FN( vkDestroySwapchainKHR )
 #endif
 
+VK_D_FN( vkCreateImage )
 VK_D_FN( vkCreateImageView )
 VK_D_FN( vkCreateRenderPass )
 VK_D_FN( vkCreateFramebuffer )

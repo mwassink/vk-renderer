@@ -18,27 +18,28 @@ Buffer::Buffer(){
 		size = 0;
 }
 
-Buffer::Buffer(VkDevice* dev, u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits wantedProperty) {
-    size = sizeIn;
+Buffer Renderer::MakeBuffer(u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits wantedProperty) {
+    Buffer buff;
+    buff.size = sizeIn;
     VkBufferCreateInfo bufferCreateInfo = {
         VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         nullptr,
         0,
-        size,
+        buff.size,
         flagsIn,
         VK_SHARING_MODE_EXCLUSIVE,
         0,
         nullptr
     };
 
-    if (vkCreateBuffer(ctx->dev, &bufferCreateInfo, nullptr, &handle) != VK_SUCCESS) {
-        ctx->pform.FatalError("Unable to allocate buffer entry", "Vulkan runtime Error");
+    if (vkCreateBuffer(ctx.dev, &bufferCreateInfo, nullptr, &buff.handle) != VK_SUCCESS) {
+        ctx.pform.FatalError("Unable to allocate buffer entry", "Vulkan runtime Error");
     }
 
     VkMemoryRequirements bReqs;
     VkPhysicalDeviceMemoryProperties  physProps;
-    vkGetBufferMemoryRequirements(ctx->dev, handle, &bReqs);
-    vkGetPhysicalDeviceMemoryProperties(ctx->gpu, &physProps);
+    vkGetBufferMemoryRequirements(ctx.dev, buff.handle, &bReqs);
+    vkGetPhysicalDeviceMemoryProperties(ctx.gpu, &physProps);
 
     for (u32 i = 0; i < physProps.memoryTypeCount; i++) {
         // probably a list of flags to see which types are supported. If it is supported and it matches the property then
@@ -49,19 +50,19 @@ Buffer::Buffer(VkDevice* dev, u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits
                 bReqs.size,
                 i
             };
-            if (vkAllocateMemory(ctx->dev, &allocInfo, nullptr, &memory) == VK_SUCCESS) {
-                return;
+            if (vkAllocateMemory(ctx.dev, &allocInfo, nullptr, &buff.memory) == VK_SUCCESS) {
+                return buff;
             }
         }
     }
 
-    ctx->pform.FatalError("Unable to alloc memory for a buffer", "Vulkan Runtime Error");
-    
+    ctx.pform.FatalError("Unable to alloc memory for a buffer", "Vulkan Runtime Error");
+    return buff;
 }
 
 Buffer Renderer::UniformBuffer(u32 sz, void* data) {
     
-    Buffer internalBuffer = Buffer(&ctx.dev, sz, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
+    Buffer internalBuffer = MakeBuffer(sz, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
 
     // Move the data into the buffer
     toGPU(data, internalBuffer.memory, sz);
@@ -70,7 +71,7 @@ Buffer Renderer::UniformBuffer(u32 sz, void* data) {
 
 Buffer Renderer::StagingBuffer(u32 sz, void* data) {
     
-    Buffer internalBuffer = Buffer(&ctx.dev, sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    Buffer internalBuffer = MakeBuffer(sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     toGPU(data, internalBuffer.memory, sz);
 
     return internalBuffer;
@@ -102,8 +103,41 @@ Texture Renderer::RGBATexture(const char* fileName) {
     int w, h, comps;
     u8* imageData = stbi_load_from_memory( (u8*) data.data, data.size, &w, &h, &comps, 4  );
     ctx.pform.ReleaseFileData(&data);
-    if (!imageData || !(w > 0 && h > 0 && comps > 0)) {
+    if (!imageData || !(w > 0 && h > 0 && comps == 4)) {
         ctx.pform.FatalError(fileName, "Error while reading texture");
+    }
+
+    tex.size = w * h * 4;
+    tex.w = w;
+    tex.h = h;
+    tex.comps = comps;
+
+    
+    VkImageCreateInfo cInfo = {
+        VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,                  
+        nullptr,                                              
+        0,                                                    
+        VK_IMAGE_TYPE_2D,                                     
+        VK_FORMAT_R8G8B8A8_UNORM,                             
+        {                                                     
+            tex.w,                                                
+            tex.h,                                               
+            1
+        },
+        1,                                                    
+        1,                                                    
+        VK_SAMPLE_COUNT_1_BIT,                                
+        VK_IMAGE_TILING_OPTIMAL,                              
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT |                     
+        VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_SHARING_MODE_EXCLUSIVE,                            
+        0,                                                    
+        nullptr,                                              
+        VK_IMAGE_LAYOUT_UNDEFINED   
+    };
+
+    if (vkCreateImage(ctx.dev, &cInfo,nullptr, &tex.imageHandle ) != VK_SUCCESS) {
+        ctx.pform.FatalError("Vk Image Creation Error ", "VK Runtime Error");
     }
 
     
