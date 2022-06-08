@@ -36,6 +36,10 @@ struct Window {
 
 #endif
 
+struct FileData {
+    unsigned char* data;
+    unsigned long size;
+};
 
 struct Platform{
 	Window window;
@@ -47,7 +51,9 @@ struct Platform{
 	void PopupWarning(const char* msg, const char* title);
 	void* WrangleExportedEntry(const char* functionName);
 
-
+    FileData ReadBinaryFile(const char* name);
+    void ReleaseFileData(FileData* data);
+    
 };
 
 #endif //PLATFORM_H

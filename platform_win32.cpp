@@ -10,6 +10,8 @@ const char* surfaceExtensionName = VK_KHR_SURFACE_EXTENSION_NAME;
 const char* platformSurfaceExtensionName= VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
 
 
+
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_SIZE:
@@ -99,8 +101,31 @@ void Platform::FatalError(const char* msg, const char* title) {
     ExitProcess(1);
 }
 
+
+
 void Platform::PopupWarning(const char* msg, const char* title) {
     MessageBox(0, msg, title, MB_OK | MB_ICONWARNING);
 }
 
+FileData Platform::ReadBinaryFile(const char* name) {
+    FileData fileData;
+    HANDLE hFile;
+    union _LARGE_INTEGER size;
+    DWORD  read;
+    hFile = CreateFileA(name, GENERIC_READ, 0, 0, OPEN_EXISTING,0 , 0 );
+    if (!GetFileSizeEx(hFile, &size )) {
+        FatalError(name, "Unable to open file!");
+    }
+    fileData.data = (unsigned char*)VirtualAlloc(NULL, size.QuadPart + 1, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE );
+    if (!ReadFile(hFile, fileData.data, size.QuadPart, &read, 0)) {
+        FatalError(name, "Unable to open file");
+    }
+    fileData.size = read;
+    CloseHandle(hFile);
+    return fileData;
+}
+
+void Platform::ReleaseFileData(FileData* data) {
+    VirtualFree(data->data, 0, MEM_RELEASE);
+}
 

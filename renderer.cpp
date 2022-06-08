@@ -6,6 +6,8 @@
 #include "renderer.h"
 
 #include "functions.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include "include/stb_image.h"
 
 
 
@@ -57,14 +59,21 @@ Buffer::Buffer(VkDevice* dev, u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits
     
 }
 
-UniformBuffer::UniformBuffer(VkDevice* dev, u32 sz, void* data) {
-    internalBuffer = Buffer(dev, sz, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
+Buffer Renderer::UniformBuffer(u32 sz, void* data) {
+    
+    Buffer internalBuffer = Buffer(&ctx.dev, sz, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
 
-    // (TODO) complete this!
+    // Move the data into the buffer
+    toGPU(data, internalBuffer.memory, sz);
+    return internalBuffer;
+}
 
+Buffer Renderer::StagingBuffer(u32 sz, void* data) {
     
-    
-    
+    Buffer internalBuffer = Buffer(&ctx.dev, sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    toGPU(data, internalBuffer.memory, sz);
+
+    return internalBuffer;
 }
 
 
@@ -86,5 +95,27 @@ void Renderer::toGPU(void* data, VkDeviceMemory mem, u32 sz ) {
     vkUnmapMemory(ctx.dev, mem);
     
 }
+
+Texture Renderer::RGBATexture(const char* fileName) {
+    Texture tex;
+    FileData data = ctx.pform.ReadBinaryFile(fileName);
+    int w, h, comps;
+    u8* imageData = stbi_load_from_memory( (u8*) data.data, data.size, &w, &h, &comps, 4  );
+    ctx.pform.ReleaseFileData(&data);
+    if (!imageData || !(w > 0 && h > 0 && comps > 0)) {
+        ctx.pform.FatalError(fileName, "Error while reading texture");
+    }
+
+    
+    
+
+
+    return tex;
+    
+}
+
+
+
+
 
 
