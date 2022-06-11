@@ -109,6 +109,7 @@ VK_D_FN(vkDestroyFence)
 VK_D_FN( vkCreateSampler )
 VK_D_FN( vkCmdCopyBufferToImage)
 VK_D_FN(vkCmdCopyBuffer)
+VK_D_FN(vkCreateDescriptorSetLayout)
 
 
 

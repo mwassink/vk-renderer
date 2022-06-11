@@ -39,6 +39,7 @@ struct Renderer {
 
     void BasicRenderPass(void);
 
+    VkDescriptorSetLayout BasicDescriptorSetLayout(void);
     
     
     
