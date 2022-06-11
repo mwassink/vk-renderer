@@ -283,6 +283,16 @@ void Renderer::FillTexture(u32 sz, void* data, Texture* tex) {
     vkDeviceWaitIdle(ctx.dev);
 }
 
+VkDescriptorSetLayout BasicDescriptorSetLayout() {
+    VkDescriptorSetLayout basicLayout;
+
+    Vector<VkDescriptorSetLayoutBinding> bindings(2);
+    bindings[0] = {0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, }
+
+
+}
+
+
 
 
 

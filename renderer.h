@@ -24,10 +24,6 @@ struct Texture {
     VkSampler sampler; // (TODO) allow for more of these
 };
 
-
-
-
-
 struct Renderer {
     
     VulkanContext ctx;
@@ -41,6 +37,7 @@ struct Renderer {
     void FillTexture(u32 sz, void* data, Texture* tex);
     void AllocMemoryImage(u32 sz, VkImage handle, VkMemoryPropertyFlagBits wantedProperty, VkDeviceMemory* mem);
 
+    void BasicRenderPass(void);
 
     
     
