@@ -49,7 +49,7 @@ VK_IN_FN( vkGetPhysicalDeviceMemoryProperties )
 VK_D_FN(vkGetDeviceQueue)
 VK_D_FN(vkDestroyDevice)
 VK_D_FN(vkDeviceWaitIdle)
-
+VK_D_FN( vkGetImageMemoryRequirements )
 VK_D_FN( vkCreateSemaphore )
 VK_D_FN( vkCreateCommandPool )
 VK_D_FN( vkAllocateCommandBuffers )
@@ -63,6 +63,7 @@ VK_D_FN( vkDestroyCommandPool )
 VK_D_FN( vkDestroySemaphore )
 VK_D_FN( vkCreateBuffer )
 VK_D_FN( vkGetBufferMemoryRequirements )
+VK_D_FN( vkBindImageMemory)
 
 #if defined(USE_SWAPCHAIN_EXTENSIONS)
 VK_D_FN( vkCreateSwapchainKHR )
@@ -105,6 +106,9 @@ VK_D_FN(vkResetFences)
 VK_D_FN(vkFreeMemory)
 VK_D_FN(vkDestroyBuffer)
 VK_D_FN(vkDestroyFence)
+VK_D_FN( vkCreateSampler )
+VK_D_FN( vkCmdCopyBufferToImage)
+VK_D_FN(vkCmdCopyBuffer)
 
 
 

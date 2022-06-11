@@ -3,7 +3,8 @@
         {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "C:\\VulkanSDK\\1.2.198.1\\Include\\vulkan"
             ],
             "defines": [
                 "_DEBUG",
@@ -14,7 +15,12 @@
             "compilerPath": "C:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.25.28610/bin/Hostx64/x64/cl.exe",
             "cStandard": "c17",
             "cppStandard": "c++17",
-            "intelliSenseMode": "windows-msvc-x64"
+            "intelliSenseMode": "windows-msvc-x64",
+            "compilerArgs": [
+                "-D VK_NO_PROTOTYPES",
+                "-D VK_USE_PLATFORM_WIN32_KHR",
+                "-D USE_SWAPCHAIN_EXTENSIONS"
+            ]
         }
     ],
     "version": 4
