@@ -3,12 +3,11 @@
 
 #define M_PI 3.1415926535897932384626433832795
 
-
-
 layout(set=0, binding=1) uniform lightingData {
   float power;
   float shininess;
   vec4 lightPos; //position in camera space
+  vec4 lightColor;
 }
 
 layout(set=0, binding=2) uniform sampler2D tex;
@@ -31,9 +30,7 @@ void main() {
   float intensity = power * attenuation;
 
   vec3 diffRefl = (ndotl / M_PI * intensity) * texture(tex, uv).xyz;
-
-  
-
-
+  vec3 specRefl = spec * intensity * lightColor;
+  color = vec4(diffRefl + specRefl, 1.0f);
 
 }
