@@ -57,6 +57,8 @@ struct Renderer {
     VkPipelineLayout BasicPipelineLayout(BasicRenderData* renderData);
     VkRenderPass BasicRenderPass(VkFormat* swapChainFormat);
     VkPipeline BasicPipeline(BasicRenderData* renderData);
+    VkShaderModule ShaderModule(const char* spirvFileName);
+    
 
     
 

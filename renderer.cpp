@@ -386,8 +386,29 @@ VkPipelineLayout Renderer::BasicPipelineLayout(BasicRenderData* renderData) {
 }
 
 
+VkShaderModule Renderer::ShaderModule(const char* spirvFileName) {
+    VkShaderModule mod;
+    char errBuff[1000] = {0};
+    FileData data = ctx.pform.ReadBinaryFile(spirvFileName);
+    VkShaderModuleCreateInfo crInfo = {VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, nullptr, 0, data.size, (u32*) data.data};
+    if (vkCreateShaderModule(ctx.dev, &crInfo, nullptr, &mod) != VK_SUCCESS) {
+        snprintf(errBuff, 1000, "Unable to load shader %s", spirvFileName);
+        ctx.pform.FatalError(errBuff, "Vulkan Runtime Error");
+    }
+    return mod;
+}
+
+
 VkPipeline Renderer::BasicPipeline(BasicRenderData* renderData) {
     VkPipeline pl;
 
+    auto vMod = ShaderModule("shaders/basicVertex.spv");
+    auto pMod = ShaderModule("shaders/basicPixel.spv");
+    VkPipelineShaderStageCreateInfo shaders[] = {
+        {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vMod, "main", nullptr},
+        {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, pMod, "main", nullptr}
+    };
     
+
+
 }
