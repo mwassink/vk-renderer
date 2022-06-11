@@ -24,6 +24,16 @@ struct Texture {
     VkSampler sampler; // (TODO) allow for more of these
 };
 
+
+struct BasicRenderData {
+    Texture modelTexture;
+    Buffer matrixUniforms;
+    Buffer lightingData;
+    VkDescriptorSet descriptorSet;
+    VkDescriptorSetLayout dsLayout;
+};
+
+
 struct Renderer {
     
     VulkanContext ctx;
@@ -40,8 +50,16 @@ struct Renderer {
     void BasicRenderPass(void);
 
     VkDescriptorSetLayout BasicDescriptorSetLayout(void);
+    VkDescriptorPool BasicDescriptorPool(void);
+    VkDescriptorSet BasicDescriptorSetAllocation(VkDescriptorPool* pool, VkDescriptorSetLayout* layout );
+    void WriteBasicDescriptorSet(BasicRenderData* renderData);
     
+    VkPipelineLayout BasicPipelineLayout(BasicRenderData* renderData);
+    VkRenderPass BasicRenderPass(VkFormat* swapChainFormat);
+    VkPipeline BasicPipeline(BasicRenderData* renderData);
+
     
+
     
     
 };

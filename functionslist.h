@@ -110,7 +110,7 @@ VK_D_FN( vkCreateSampler )
 VK_D_FN( vkCmdCopyBufferToImage)
 VK_D_FN(vkCmdCopyBuffer)
 VK_D_FN(vkCreateDescriptorSetLayout)
-
-
-
+VK_D_FN( vkCreateDescriptorPool)
+VK_D_FN( vkAllocateDescriptorSets)
+VK_D_FN( vkUpdateDescriptorSets)
 #undef VK_D_FN

@@ -298,14 +298,96 @@ VkDescriptorSetLayout Renderer::BasicDescriptorSetLayout() {
         ctx.pform.FatalError("Unable to create basic descriptor set layout", "Vulkan Runtime Error");
     }
 
-    
+}
 
+VkDescriptorPool Renderer::BasicDescriptorPool(void) {
+    VkDescriptorPool pool;
+    Vector<VkDescriptorPoolSize> szes(3);
+    szes[0] = {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1};
+    szes[1] = {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1};
+    szes[2] = {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1};
+
+    VkDescriptorPoolCreateInfo cInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr, 0, 1, (u32) szes.sz, szes.data};
+    if (vkCreateDescriptorPool(ctx.dev, &cInfo,nullptr, &pool  ) != VK_SUCCESS) {
+        ctx.pform.FatalError("Could not create descriptor pool for basic shader", "Vulkan Runtime Error");
+    }
 
 }
 
+VkDescriptorSet Renderer::BasicDescriptorSetAllocation(VkDescriptorPool* pool, VkDescriptorSetLayout* layout ) {
+
+    VkDescriptorSet descriptorSet;
+    VkDescriptorSetAllocateInfo allocInfo = {
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr, *pool, 1, layout
+    };
+    if (vkAllocateDescriptorSets(ctx.dev, &allocInfo,&descriptorSet) != VK_SUCCESS) {
+        ctx.pform.FatalError("Could not make a descriptor set", "Vulkan Runtime Error");
+    }
+    return descriptorSet;
+}
+
+// (Put the stuff in the uniform buffer before writing?)
+void Renderer::WriteBasicDescriptorSet(BasicRenderData* renderData) {
+    VkDescriptorImageInfo imgInfo = {
+        renderData->modelTexture.sampler, renderData->modelTexture.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+    };
+    VkDescriptorBufferInfo matrixUniforms = {
+        renderData->matrixUniforms.handle, 0, renderData->matrixUniforms.size
+    };
+    VkDescriptorBufferInfo lightUniforms = {
+        renderData->lightingData.handle, 0, renderData->lightingData.size
+    };
+    VkWriteDescriptorSet writes[3];
+
+    writes[0] = {
+        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, renderData->descriptorSet, 0, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
+        nullptr, &matrixUniforms, nullptr
+    };
+    writes[1] = {
+        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, renderData->descriptorSet, 1, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
+        nullptr, &lightUniforms, nullptr
+    };
+    writes[2] = {
+        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, renderData->descriptorSet, 2, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 
+        &imgInfo,nullptr,  nullptr
+    };
+
+    vkUpdateDescriptorSets(ctx.dev, (u32) 3, writes, 0, nullptr);
+
+}
+
+VkRenderPass Renderer::BasicRenderPass(VkFormat* format) {
+    VkRenderPass rp;
+    VkAttachmentDescription attachmentDescrs [] = {{
+        0, *format, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,  VK_ATTACHMENT_LOAD_OP_DONT_CARE,            
+        VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL }
+    };
+    VkAttachmentReference colorReferences [] = { {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL}};
+    VkSubpassDescription subpassDescriptions[] = { {0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, colorReferences, nullptr, nullptr, 0, nullptr}};
+    VkRenderPassCreateInfo rpCreateInfo = {
+        VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO, nullptr, 0 ,1, attachmentDescrs, 1, subpassDescriptions, 0, nullptr
+    };
+    if (vkCreateRenderPass(ctx.dev, &rpCreateInfo, nullptr, &rp) != VK_SUCCESS) {
+        ctx.pform.FatalError("Could not create render pass", "Vulkan Runtime Error");
+    }
+
+    return rp;
+}
 
 
+VkPipelineLayout Renderer::BasicPipelineLayout(BasicRenderData* renderData) {
+    VkPipelineLayout plLayout;    
+    VkPipelineLayoutCreateInfo layoutCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, nullptr, 0, 1, &renderData->dsLayout, 0, nullptr
+    };
+    if (vkCreatePipelineLayout(ctx.dev, &layoutCreateInfo, nullptr, &plLayout) != VK_SUCCESS) {
+        ctx.pform.FatalError("Unable to create a basic pipeline layout", "Vulkan Runtime Error");
+    }
+}
 
 
+VkPipeline Renderer::BasicPipeline(BasicRenderData* renderData) {
+    VkPipeline pl;
 
-
+    
+}
