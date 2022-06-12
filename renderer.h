@@ -41,6 +41,12 @@ struct BasicVertexData {
     f32 nx; f32 ny; f32 nz;
 };
 
+struct BasicModel {
+    Vector<BasicVertexData> vData;
+    
+};
+
+
 
 
 struct Renderer {
@@ -68,6 +74,9 @@ struct Renderer {
     VkRenderPass BasicRenderPass(VkFormat* swapChainFormat);
     VkPipeline BasicPipeline(BasicRenderData* renderData);
     VkShaderModule ShaderModule(const char* spirvFileName);
+    void MoveUniformFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuffer);
+    void MoveVertexBufferFromDMARegion(Buffer &StagingBuffer, Buffer &targetBuffer);
+    void BasicRenderModel(BasicModel* model);
     
 
     

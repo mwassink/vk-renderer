@@ -67,6 +67,12 @@ Buffer Renderer::UniformBuffer(u32 sz, void* data) {
     // CPU can't do DMA on local memory, so that's what the staging buffer is for
 
     Buffer stagingBuffer = StagingBuffer(sz, data);
+    
+    MoveUniformFromDMARegion(stagingBuffer, uniformBuffer);
+    return uniformBuffer;
+}
+
+void Renderer::MoveUniformFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuffer) {
     auto cmdBuffer = ctx.frameResources[0].commandBuffer;
     
     VkCommandBufferBeginInfo beginInfo = {
@@ -78,24 +84,21 @@ Buffer Renderer::UniformBuffer(u32 sz, void* data) {
 
     vkBeginCommandBuffer(cmdBuffer, &beginInfo);
 
-    VkBufferCopy buffCopyInfo = {0, 0, uniformBuffer.size};
-    vkCmdCopyBuffer(cmdBuffer, stagingBuffer.handle, uniformBuffer.handle, 1, &buffCopyInfo);
+    VkBufferCopy buffCopyInfo = {0, 0, targetBuffer.size};
+    vkCmdCopyBuffer(cmdBuffer, stagingBuffer.handle, targetBuffer.handle, 1, &buffCopyInfo);
     VkBufferMemoryBarrier rwBarrier {
         VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT, VK_QUEUE_FAMILY_IGNORED,
-        VK_QUEUE_FAMILY_IGNORED, uniformBuffer.handle, 0, VK_WHOLE_SIZE
+        VK_QUEUE_FAMILY_IGNORED, targetBuffer.handle, 0, VK_WHOLE_SIZE
     };
     vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, nullptr, 1, &rwBarrier, 0, nullptr);
+    vkEndCommandBuffer(cmdBuffer);
     VkSubmitInfo subInfo = {
         VK_STRUCTURE_TYPE_SUBMIT_INFO, nullptr, 0, nullptr, nullptr, 1, &cmdBuffer, 0, nullptr
     };
     if (vkQueueSubmit(ctx.graphicsPresentQueue, 1, &subInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
         ctx.pform.FatalError("Unable to submit to queue for making uniform buffer", "Vulkan Runtime Error");
     }
-
-
     vkDeviceWaitIdle(ctx.dev);
-  
-    return uniformBuffer;
 }
 
 Buffer Renderer::StagingBuffer(u32 sz, void* data) {
@@ -106,7 +109,49 @@ Buffer Renderer::StagingBuffer(u32 sz, void* data) {
     return internalBuffer;
 }
 
+Buffer Renderer::VertexBuffer( u32 sz, void* data) {
+    Buffer vBuffer = MakeBuffer(sz, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
+    Buffer stagingBuffer = StagingBuffer(sz, data);
+
+    MoveVertexBufferFromDMARegion(stagingBuffer, vBuffer);
+    
+    return vBuffer;
+
+    
+    
+
+}
+
+void Renderer::MoveVertexBufferFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuffer) {
+    auto cmdBuffer = ctx.frameResources[0].commandBuffer;
+    
+    VkCommandBufferBeginInfo beginInfo = {
+      VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,        
+      nullptr,                                            
+      VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,        
+      nullptr                                             
+    };
+
+    vkBeginCommandBuffer(cmdBuffer, &beginInfo);
+
+    VkBufferCopy buffCopyInfo = {0, 0, targetBuffer.size};
+    vkCmdCopyBuffer(cmdBuffer, stagingBuffer.handle, targetBuffer.handle, 1, &buffCopyInfo);
+    VkBufferMemoryBarrier rwBarrier {
+        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT, VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED, targetBuffer.handle, 0, VK_WHOLE_SIZE
+    };
+    vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, nullptr, 1, &rwBarrier, 0, nullptr);
+    vkEndCommandBuffer(cmdBuffer);
+    VkSubmitInfo subInfo = {
+        VK_STRUCTURE_TYPE_SUBMIT_INFO, nullptr, 0, nullptr, nullptr, 1, &cmdBuffer, 0, nullptr
+    };
+    if (vkQueueSubmit(ctx.graphicsPresentQueue, 1, &subInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+        ctx.pform.FatalError("Unable to submit to queue for making uniform buffer", "Vulkan Runtime Error");
+    }
+    vkDeviceWaitIdle(ctx.dev);
+
+}
 
 void Renderer::toGPU(void* data, VkDeviceMemory mem, u32 sz ) {
     
@@ -463,4 +508,12 @@ VkPipeline Renderer::BasicPipeline(BasicRenderData* renderData) {
 
     return pl;
 }
+
+
+
+
+
+
+
+
 

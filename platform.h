@@ -1,5 +1,3 @@
-/* date = May 22nd 2022 2:39 pm */
-
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
