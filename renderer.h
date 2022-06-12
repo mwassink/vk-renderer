@@ -31,7 +31,16 @@ struct BasicRenderData {
     Buffer lightingData;
     VkDescriptorSet descriptorSet;
     VkDescriptorSetLayout dsLayout;
+    VkPipelineLayout plLayout;
+    VkRenderPass rPass;
 };
+
+struct BasicVertexData {
+    f32 x; f32 y;  f32 z; f32 w;
+    f32 u; f32 v;
+    f32 nx; f32 ny; f32 nz;
+};
+
 
 
 struct Renderer {
@@ -42,6 +51,7 @@ struct Renderer {
     
     Buffer UniformBuffer( u32 sz, void* data);
     Buffer StagingBuffer( u32 sz, void* data);
+    Buffer VertexBuffer( u32 sz, void* data);
     void toGPU(void* from, VkDeviceMemory mem, u32 sz );
     Texture RGBATexture(const char* fileName);
     void FillTexture(u32 sz, void* data, Texture* tex);

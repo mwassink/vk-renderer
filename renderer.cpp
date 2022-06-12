@@ -95,7 +95,7 @@ Buffer Renderer::UniformBuffer(u32 sz, void* data) {
 
     vkDeviceWaitIdle(ctx.dev);
   
-    
+    return uniformBuffer;
 }
 
 Buffer Renderer::StagingBuffer(u32 sz, void* data) {
@@ -298,6 +298,8 @@ VkDescriptorSetLayout Renderer::BasicDescriptorSetLayout() {
         ctx.pform.FatalError("Unable to create basic descriptor set layout", "Vulkan Runtime Error");
     }
 
+    return basicLayout;
+
 }
 
 VkDescriptorPool Renderer::BasicDescriptorPool(void) {
@@ -311,6 +313,7 @@ VkDescriptorPool Renderer::BasicDescriptorPool(void) {
     if (vkCreateDescriptorPool(ctx.dev, &cInfo,nullptr, &pool  ) != VK_SUCCESS) {
         ctx.pform.FatalError("Could not create descriptor pool for basic shader", "Vulkan Runtime Error");
     }
+    return pool;
 
 }
 
@@ -383,6 +386,7 @@ VkPipelineLayout Renderer::BasicPipelineLayout(BasicRenderData* renderData) {
     if (vkCreatePipelineLayout(ctx.dev, &layoutCreateInfo, nullptr, &plLayout) != VK_SUCCESS) {
         ctx.pform.FatalError("Unable to create a basic pipeline layout", "Vulkan Runtime Error");
     }
+    return plLayout;
 }
 
 
@@ -409,6 +413,54 @@ VkPipeline Renderer::BasicPipeline(BasicRenderData* renderData) {
         {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, pMod, "main", nullptr}
     };
     
+    VkVertexInputBindingDescription bindingDescription = {
+        0, sizeof(BasicVertexData)
+    };
 
+    VkVertexInputAttributeDescription vertexAttrDescrs []  = {
+        {0, bindingDescription.binding, VK_FORMAT_R32G32B32A32_SFLOAT, 0},
+        {1, bindingDescription.binding, VK_FORMAT_R32G32_SFLOAT, 4 * sizeof(f32)},  // this is the offset
+        {2, bindingDescription.binding, VK_FORMAT_R32G32B32A32_SFLOAT}
+    };
 
+    VkPipelineVertexInputStateCreateInfo inStateCInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, 0, 1 ,&bindingDescription,3, vertexAttrDescrs 
+    };
+    VkPipelineInputAssemblyStateCreateInfo inAsmCrInfo = {
+      VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, nullptr, 0, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,VK_FALSE 
+    };
+    VkPipelineViewportStateCreateInfo vpStateCrInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, nullptr, 0, 1, nullptr, 1, nullptr
+    };
+    VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,nullptr, 0, VK_FALSE, VK_FALSE, VK_POLYGON_MODE_FILL,
+        VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f 
+    };
+
+    VkPipelineMultisampleStateCreateInfo multiStateCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, nullptr, 0, VK_SAMPLE_COUNT_1_BIT, VK_FALSE, 1.0f, nullptr, VK_FALSE, VK_FALSE
+    };
+
+    VkPipelineColorBlendAttachmentState cBlendState = {
+        VK_FALSE, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_ONE,VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+        VK_COLOR_COMPONENT_R_BIT |VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT  
+    };
+
+    VkPipelineColorBlendStateCreateInfo cbStateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, nullptr, 0, VK_FALSE, VK_LOGIC_OP_COPY, 1, &cBlendState, {0, 0, 0, 0}
+    };
+
+    VkDynamicState dStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR}; // we can change these
+    VkPipelineDynamicStateCreateInfo dStateCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO, nullptr, 0, 2, dStates};
+    VkGraphicsPipelineCreateInfo pCrInfo = {
+        VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO, nullptr, 0, 2, shaders, &inStateCInfo, &inAsmCrInfo, nullptr,
+        &vpStateCrInfo, &rasterizationStateCreateInfo, &multiStateCreateInfo, nullptr, &cbStateInfo, &dStateCreateInfo, renderData->plLayout,
+        renderData->rPass, 0, VK_NULL_HANDLE, -1
+    };
+    if (vkCreateGraphicsPipelines(ctx.dev, VK_NULL_HANDLE, 1, &pCrInfo, nullptr, &pl ) != VK_SUCCESS) {
+        ctx.pform.FatalError("Could not create the basic pipeline" ,"Vulkan Runtime Error");
+    }
+
+    return pl;
 }
+
