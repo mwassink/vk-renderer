@@ -75,6 +75,9 @@ void Window::GetRect(int* w, int* h) {
 }
 
 bool Platform::Init() {
+    SYSTEM_INFO sysInfo;
+    GetSystemInfo(&sysInfo);
+    pageSize = sysInfo.dwAllocationGranularity;
     if (!window.Create("Vulkan Test")) {
         return false;
     }
@@ -127,5 +130,16 @@ FileData Platform::ReadBinaryFile(const char* name) {
 
 void Platform::ReleaseFileData(FileData* data) {
     VirtualFree(data->data, 0, MEM_RELEASE);
+}
+
+void* Platform::GetMemory(u32 ct, u32* bytesReturned) {
+    if (ct == 0) return 0;
+    void* ptr = VirtualAlloc(NULL, ct, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+    *bytesReturned = ptr ? ((ct - 1) / pageSize + 1) * pageSize : 0;
+    return ptr;
+}
+
+void Platform::FreeMemory(void* data) {
+    VirtualFree(data, 0, MEM_RELEASE);
 }
 

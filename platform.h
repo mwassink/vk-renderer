@@ -8,6 +8,7 @@ extern const char* platformSurfaceExtensionName;
 
 #ifdef _WIN32
 #include <windows.h>
+#include "types.h"
 struct Window {
 
     HINSTANCE inst =0;
@@ -42,6 +43,7 @@ struct FileData {
 struct Platform{
 	Window window;
 	ModuleHandle vkLib;
+	int pageSize;
 	bool Init();
 	void GetRect(int* w, int* h);
 	void* Wrangle(const char* functionName);
@@ -49,8 +51,10 @@ struct Platform{
 	void PopupWarning(const char* msg, const char* title);
 	void* WrangleExportedEntry(const char* functionName);
 
-    FileData ReadBinaryFile(const char* name);
-    void ReleaseFileData(FileData* data);
+  FileData ReadBinaryFile(const char* name);
+  void ReleaseFileData(FileData* data);
+	void* GetMemory(u32 count, u32* bytesReturned);
+	void FreeMemory(void* data);
     
 };
 
