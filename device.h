@@ -7,7 +7,7 @@
 #include "platform.h"
 #include "types.h"
 #include "vulkan.h"
-
+#include "utils.h"
 
 struct QueueParams {
 	VkQueue handle;

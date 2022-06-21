@@ -113,4 +113,8 @@ VK_D_FN(vkCreateDescriptorSetLayout)
 VK_D_FN( vkCreateDescriptorPool)
 VK_D_FN( vkAllocateDescriptorSets)
 VK_D_FN( vkUpdateDescriptorSets)
+VK_D_FN( vkCmdBindIndexBuffer)
+VK_D_FN(vkCmdDrawIndexed)
+VK_D_FN(vkCmdBindDescriptorSets)
+
 #undef VK_D_FN

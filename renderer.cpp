@@ -3,6 +3,7 @@
 
 #include "types.h"
 #include "device.h"
+#include "vecmath.h"
 #include "renderer.h"
 
 #include "functions.h"
@@ -72,6 +73,20 @@ Buffer Renderer::UniformBuffer(u32 sz, void* data) {
     return uniformBuffer;
 }
 
+void Renderer::MoveBufferGeneric(Buffer& stagingBuffer, Buffer& targetBuffer ) {
+    auto cmdBuffer = ctx.frameResources[0].commandBuffer;
+    VkCommandBufferBeginInfo bInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, 0, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, 0};
+    vkBeginCommandBuffer(cmdBuffer, &bInfo);
+    VkBufferCopy bcInfo = {0, 0, targetBuffer.size};
+    vkCmdCopyBuffer(cmdBuffer, stagingBuffer.handle, targetBuffer.handle,1, &bcInfo);
+    vkEndCommandBuffer(cmdBuffer);
+    VkSubmitInfo sInfo = {VK_STRUCTURE_TYPE_SUBMIT_INFO, 0, 0, 0, 0, 1, &cmdBuffer, 0, 0};
+    if (vkQueueSubmit (ctx.graphicsPresentQueue, 1, &sInfo, VK_NULL_HANDLE) != VK_SUCCESS) {
+        ctx.pform.FatalError("Cannot submit queue", "Vulkan Runtime Error");
+    }
+    vkDeviceWaitIdle(ctx.dev);
+    
+}
 void Renderer::MoveUniformFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuffer) {
     auto cmdBuffer = ctx.frameResources[0].commandBuffer;
     
@@ -123,6 +138,14 @@ Buffer Renderer::VertexBuffer( u32 sz, void* data) {
 
 }
 
+Buffer Renderer::IndexBuffer(u32 sz, void* data) {
+    Buffer iBuffer= MakeBuffer(sz, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    Buffer sBuffer=  StagingBuffer(sz, data);
+    MoveBufferGeneric(sBuffer, iBuffer);
+    return iBuffer;
+    
+}
+
 void Renderer::MoveVertexBufferFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuffer) {
     auto cmdBuffer = ctx.frameResources[0].commandBuffer;
     
@@ -138,7 +161,7 @@ void Renderer::MoveVertexBufferFromDMARegion(Buffer &stagingBuffer, Buffer &targ
     VkBufferCopy buffCopyInfo = {0, 0, targetBuffer.size};
     vkCmdCopyBuffer(cmdBuffer, stagingBuffer.handle, targetBuffer.handle, 1, &buffCopyInfo);
     VkBufferMemoryBarrier rwBarrier {
-        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT, VK_QUEUE_FAMILY_IGNORED,
+        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr, VK_ACCESS_MEMORY_WRITE_BIT, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, VK_QUEUE_FAMILY_IGNORED,
         VK_QUEUE_FAMILY_IGNORED, targetBuffer.handle, 0, VK_WHOLE_SIZE
     };
     vkCmdPipelineBarrier(cmdBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT, 0, 0, nullptr, 1, &rwBarrier, 0, nullptr);
@@ -374,10 +397,10 @@ VkDescriptorSet Renderer::BasicDescriptorSetAllocation(VkDescriptorPool* pool, V
     return descriptorSet;
 }
 
-// (Put the stuff in the uniform buffer before writing?)
-void Renderer::WriteBasicDescriptorSet(BasicRenderData* renderData) {
+// (NOTE) This is where we put all of the data into the pipeline
+void Renderer::WriteBasicDescriptorSet(BasicDrawData* renderData, VkDescriptorSet* descriptorSet, BasicModel* model) {
     VkDescriptorImageInfo imgInfo = {
-        renderData->modelTexture.sampler, renderData->modelTexture.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        model->modelTexture.sampler, model->modelTexture.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     };
     VkDescriptorBufferInfo matrixUniforms = {
         renderData->matrixUniforms.handle, 0, renderData->matrixUniforms.size
@@ -388,15 +411,15 @@ void Renderer::WriteBasicDescriptorSet(BasicRenderData* renderData) {
     VkWriteDescriptorSet writes[3];
 
     writes[0] = {
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, renderData->descriptorSet, 0, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
+        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, *descriptorSet, 0, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
         nullptr, &matrixUniforms, nullptr
     };
     writes[1] = {
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, renderData->descriptorSet, 1, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
+        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, *descriptorSet, 1, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
         nullptr, &lightUniforms, nullptr
     };
     writes[2] = {
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, renderData->descriptorSet, 2, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 
+        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, *descriptorSet, 2, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 
         &imgInfo,nullptr,  nullptr
     };
 
@@ -423,7 +446,7 @@ VkRenderPass Renderer::BasicRenderPass(VkFormat* format) {
 }
 
 
-VkPipelineLayout Renderer::BasicPipelineLayout(BasicRenderData* renderData) {
+void Renderer::BasicPipelineLayout(BasicRenderData* renderData) {
     VkPipelineLayout plLayout;    
     VkPipelineLayoutCreateInfo layoutCreateInfo = {
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, nullptr, 0, 1, &renderData->dsLayout, 0, nullptr
@@ -431,7 +454,7 @@ VkPipelineLayout Renderer::BasicPipelineLayout(BasicRenderData* renderData) {
     if (vkCreatePipelineLayout(ctx.dev, &layoutCreateInfo, nullptr, &plLayout) != VK_SUCCESS) {
         ctx.pform.FatalError("Unable to create a basic pipeline layout", "Vulkan Runtime Error");
     }
-    return plLayout;
+    renderData->plLayout = plLayout;
 }
 
 
@@ -508,6 +531,103 @@ VkPipeline Renderer::BasicPipeline(BasicRenderData* renderData) {
 
     return pl;
 }
+
+void Renderer::RefreshFramebuffer(BasicRenderData* rData, VkImageView* imgView, VkFramebuffer* currFB) {
+    if (currFB != VK_NULL_HANDLE) {
+        vkDestroyFramebuffer(ctx.dev, *currFB, nullptr);
+        currFB = VK_NULL_HANDLE;
+    }
+
+    VkFramebufferCreateInfo fbCrInfo = {
+        VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO, nullptr,
+        0, rData->rPass, 1, imgView,
+        ctx.ext.width, ctx.ext.height, 1
+    };
+
+    if (vkCreateFramebuffer(ctx.dev, &fbCrInfo, nullptr, currFB) != VK_SUCCESS) {
+        ctx.pform.FatalError("Unable to create a framebuffer!", "Vulkan Runtime Error");
+    }
+    
+}
+
+// Initialize the data before calling this
+void Renderer::DrawBasic(BasicRenderData* renderData, VkImageView* imgView, VkFramebuffer* currentFB,
+                         VkCommandBuffer cb, VkImage img, BasicModel* model) {
+    
+    RefreshFramebuffer(renderData, imgView, currentFB);
+
+    VkCommandBufferBeginInfo cbBeginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, 0,
+        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, 0
+    };
+
+    vkBeginCommandBuffer(cb, &cbBeginInfo);
+    VkImageSubresourceRange srr = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1,0,1};
+    VkImageMemoryBarrier prDrawBarrier = {
+        VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, 0, VK_ACCESS_MEMORY_READ_BIT,
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        ctx.gqFamilyIndex, ctx.gqFamilyIndex, img, srr
+    };
+    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &prDrawBarrier);
+    
+    VkClearValue clearVal = {1.0f, 1.0f, 1.0f, 1.0f};
+    VkRect2D rect = { {0, 0}, ctx.ext};
+    
+        
+    VkRenderPassBeginInfo rpBeginInfo = {
+        VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, 0, renderData->rPass,
+        *currentFB, rect, 1, &clearVal
+    };
+    vkCmdBeginRenderPass(cb, &rpBeginInfo, VK_SUBPASS_CONTENTS_INLINE );
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,  renderData->pipeline);
+    VkViewport viewport = { 0, 0, static_cast<float>(ctx.ext.width),static_cast<float>(ctx.ext.height), 0, 1 };
+    VkRect2D scissor = { {0, 0}, {static_cast<u32>(ctx.ext.width), static_cast<u32>(ctx.ext.height)}};
+    VkDeviceSize offset = 0;
+    // Do an instanced call instead
+    vkCmdBindVertexBuffers(cb, 0, 1, &model->vertexBuffer.handle, &offset);
+    vkCmdBindIndexBuffer(cb, model->indexBuffer.handle, offset, VK_INDEX_TYPE_UINT32);
+    vkCmdBindDescriptorSets(cb ,VK_PIPELINE_BIND_POINT_GRAPHICS, renderData->plLayout, 0, 1, &renderData->descriptorSet, 0, 0);
+    vkCmdDrawIndexed(cb, model->numPrimitives, 1, 0, 0, 0);
+    vkCmdEndRenderPass(cb);
+    VkImageMemoryBarrier drawPresBarrier = {
+              VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT,  
+              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, ctx.gqFamilyIndex, ctx.gqFamilyIndex,
+              img, srr
+    };
+    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &drawPresBarrier );
+    if (vkEndCommandBuffer(cb) != VK_SUCCESS) {
+        ctx.pform.FatalError("Unable to record basic draw command buffer", "Vulkan Runtime Error" );
+    }
+        
+    
+}
+
+
+// Make the pipeline, render passes, etc
+void Renderer::InitBasicRender(void) {
+    BasicRenderData rData;
+    rData.dsLayout = BasicDescriptorSetLayout();
+    BasicPipelineLayout(&rData);
+    auto rp = BasicRenderPass(&ctx.sc.format.format);
+    rData.rPass = rp;
+    auto pool = BasicDescriptorPool();
+    auto set = BasicDescriptorSetAllocation(&pool, &rData.dsLayout);
+    BasicPipeline(&rData);
+}
+
+// Make a vertex buffer, get textures, etc
+void Renderer::AddBasicModel(BasicModel* model) {
+    model->vertexBuffer = VertexBuffer( model->vData.sz * sizeof(BasicVertexData), model->vData.data  );
+    model->indexBuffer = IndexBuffer(model->indices.sz * sizeof(u32), model->indices.data);
+    //    auto ib = MakeBuffer()
+    
+}
+
+// Write the descriptor set with the proper uniforms, do the draw
+void Renderer::LightPass() {
+    
+}
+
+
 
 
 

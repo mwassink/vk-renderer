@@ -3,6 +3,7 @@
 
 Platform* pform;
 
+
 #define KILOBYTE 1024
 #define ALIGNMENT 16
 void* Allocator::bump(u32 bucket, u32 size) {
@@ -12,7 +13,7 @@ void* Allocator::bump(u32 bucket, u32 size) {
   data.space[bucket] -= (size + (ptr % ALIGNMENT));
   data.heaps[bucket] = (void*)ptr;
   data.ctrs[bucket]++;
-  
+  return mem;
 }
 
 
@@ -35,20 +36,20 @@ void* Allocator::bAlloc(u32 sz, u32* token, u32 hint = 0) {
 
   // start at the ctr and check if a bucket is 1) empty or 2) used and has space
   u32 initialSize = sz;
-  sz = heuristic(sz);
+  sz = heuristic(sz) * sz;
   void* ptr  = 0;
   for (u32 i = 0; i < MAX_HEAPS; i++) {
     u32 bucket = (data.currHeap) % MAX_HEAPS;
     u32 space;
-    if ((data.ctrs[bucket] == 0)) {
+    if (data.ctrs[bucket] == 0) {
       
       data.heaps[bucket] = pform->GetMemory(sz, &space);
-      data.space[bucket] = initialSize;
+      data.space[bucket] = sz;
       data.freePtrs[bucket] = data.heaps[bucket];
       ptr = bump(bucket, initialSize);
       *token = bucket;
       return ptr;
-    } else if (data.ctrs[bucket] > 0 && (initialSize < data.ctrs[bucket] + ALIGNMENT)) {
+    } else if (data.ctrs[bucket] > 0 && (initialSize < (data.space[bucket] + ALIGNMENT))) {
       ptr = bump(bucket, initialSize);
       *token = bucket;
       return ptr;
@@ -65,4 +66,7 @@ void Allocator::bFree(u32 token) {
     pform->FreeMemory(data.freePtrs[token]);
   }
 }
+
+Allocator allocator;
+
 

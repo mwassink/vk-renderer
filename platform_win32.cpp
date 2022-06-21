@@ -9,7 +9,7 @@ const char* swapChainExtensionName = VK_KHR_SWAPCHAIN_EXTENSION_NAME;
 const char* surfaceExtensionName = VK_KHR_SURFACE_EXTENSION_NAME;
 const char* platformSurfaceExtensionName= VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
 
-
+extern Platform* pform;
 
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
@@ -86,6 +86,7 @@ bool Platform::Init() {
 		FatalError("Unable to init vulkan library", "Init Error");
 		return false;
 	}
+    pform = this;
 	return true;
 }
 

@@ -1,3 +1,5 @@
+#ifndef UTILS_H
+#define UTILS_H
 #include "types.h"
 #include "platform.h"
 
@@ -20,7 +22,46 @@ struct Allocator {
   void bFree(u32 token);
   void* bump(u32 bucket, u32 size);
   u32 heuristic(u32 sz);
-  Allocator();
+  
 };
 
+extern Allocator allocator;
 
+
+template <typename Type>
+struct Vector {
+    Type* data;
+    u32 sz, cap;
+    u32 freeToken;
+    
+    Type& operator[](int index) {
+        return data[index];
+    }
+    
+    Vector(int sz_in) {
+        data = (Type*) allocator.bAlloc(sz_in*sizeof(Type), &freeToken, 0);
+        sz = sz_in;
+        cap = sz_in;
+        
+    }
+    
+    void resize(int sz_in) {
+        sz = sz_in;
+    }
+    
+    Vector() {
+        data = (Type* ) allocator.bAlloc(20*sizeof(Type), &freeToken, 0);
+        sz = 0;
+        cap = 20;
+    }
+    
+    u64 size() {
+        return sz;
+    }
+    
+    ~Vector() {
+        allocator.bFree(freeToken);
+    }
+};
+
+#endif
