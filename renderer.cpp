@@ -7,10 +7,11 @@
 #include "renderer.h"
 
 #include "functions.h"
+#include "utils.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "include/stb_image.h"
 
-
+#define MAXU32 0xFFFFFFFF
 
 
 Buffer::Buffer(){
@@ -615,10 +616,17 @@ void Renderer::InitBasicRender(void) {
 }
 
 // Make a vertex buffer, get textures, etc
-void Renderer::AddBasicModel(BasicModel* model) {
-    model->vertexBuffer = VertexBuffer( model->vData.sz * sizeof(BasicVertexData), model->vData.data  );
-    model->indexBuffer = IndexBuffer(model->indices.sz * sizeof(u32), model->indices.data);
-    //    auto ib = MakeBuffer()
+// The model is supposed to have all vertex data already in the struct, except for the file
+BasicModel Renderer::AddBasicModel(BasicModelFiles fileNames) {
+    
+    BasicModel model;
+    
+       
+
+    // model.vertexBuffer = VertexBuffer( model.vData.sz * sizeof(BasicVertexData), model.vData.data  );
+    // model.indexBuffer = IndexBuffer(model.indices.sz * sizeof(u32), model.indices.data);
+    // auto ib = MakeBuffer()
+    // model.modelTexture = RGBATexture();
     
 }
 
@@ -628,10 +636,140 @@ void Renderer::LightPass() {
 }
 
 
+BasicModel Renderer::LoadModelObj(const char* f, const char* imageFile) {
+    BasicModel model;
+
+    Vector2 dummyUV;
+    Vector3 dummyVec;
+    Vector<Vector3> coords, normals;
+    Vector<Vector2> tcoords;
+    Vector<BasicVertexData> verticesList;
+    Vector<u32> indices;
+    coords.push(dummyVec);
+    normals.push(dummyVec);
+    tcoords.push(dummyUV);
+    
+    
+    // is an estimate
+    int triangles = CountTrianglesOccurences(f);
+    if (triangles == -1) {
+        pform->FatalError("Invalid asset file","Vulkan Runtime Error"); 
+    }
+    HashTable mappingTable(triangles * 4);
+    
+    FILE* fp = fopen(f, "rb");
+    
+    if (!fp) {
+        pform->FatalError("unable to read in obj file","Vulkan Runtime Error"); 
+    }
+    char arr[200];
+    char type[100];
+    char tri1[80]; char tri2[80]; char tri3[80]; char tri4[80];
+    Vector3 tr;
+    Vector2 df;
+    
+    while (fgets(arr, 100, fp) != NULL) {
+        sscanf(arr, "%s", type );
+        if (!strcmp(type, "v")) {
+            sscanf(arr, "%s %f %f %f", type, &tr.x, &tr.y, &tr.z);
+            coords.push(tr);
+        }
+        else if (!strcmp(type, "vt")) {
+            sscanf(arr, "%s %f %f", type, &df.u, &df.v);
+            tcoords.push(df);
+        }
+        else if (!strcmp(type, "vn")) {
+            sscanf(arr, "%s %f %f %f", type, &tr.x, &tr.y, &tr.z);
+            normals.push(tr);
+        }
+        else if (!strcmp(type, "f")) {
+            if(sscanf(arr, "%s %s %s %s %s", type, tri1, tri2, tri3, tri4) == 5) {
+                // 1, 2, 3 gives a properly wound triangle
+                ParseVertex(tri1, &mappingTable, &indices, &coords, &normals, &tcoords, &verticesList );
+                ParseVertex(tri2, &mappingTable, &indices, &coords, &normals, &tcoords, &verticesList);
+                ParseVertex(tri3, &mappingTable, &indices, &coords, &normals, &tcoords, &verticesList);
+                // 1, 3, 4 should?
+                ParseVertex(tri1, &mappingTable, &indices, &coords, &normals, &tcoords, &verticesList );
+                ParseVertex(tri3, &mappingTable, &indices, &coords, &normals, &tcoords, &verticesList);
+                ParseVertex(tri4, &mappingTable, &indices, &coords, &normals, &tcoords, &verticesList);
+            }
+            
+            ParseVertex(tri1, &mappingTable, &indices, &coords, &normals, &tcoords, &verticesList );
+            ParseVertex(tri2, &mappingTable, &indices, &coords, &normals, &tcoords, &verticesList);
+            ParseVertex(tri3, &mappingTable, &indices, &coords, &normals, &tcoords, &verticesList);
+            
+        }
+    }
+
+    fclose(fp);
+    model.indices = indices;
+    model.vData = verticesList;
+    model.modelTexture = RGBATexture(imageFile);
+    model.numPrimitives = indices.sz;
+    
+    
+    return model;
+}
 
 
+u32 Renderer::CountTrianglesOccurences(const char* f) {
+    int sz, ctr = 0;
+    auto data = pform->ReadBinaryFile(f);
+    
+    if (!data.data) return -1;
+    for (int i = 0; i < data.size; ++i) {
+        ctr += (data.data[i] == 'f');
+    }
+    pform->ReleaseFileData(&data);
+    return ctr;   
+}
+
+BasicVertexData Renderer::ConstructVertex(Vector<Vector3>* coords, Vector<Vector3>* normals, Vector<Vector2>* uvcoords, u32 p, u32 t, u32 n  ) {
+    BasicVertexData v;
+    v.coord = Vector4((*coords)[p], 1.0f);
+    if (n != MAXU32)
+        v.normal = (*normals)[n];
+    else
+        v.normal = {0.0f, 0.0f, 0.0f};
+    if (n != MAXU32)
+        v.uv = (*uvcoords)[t];
+    else
+        v.uv = {2.5f, 2.5f};
+    return v;
+    
+}
 
 
+void Renderer::ParseVertex(const char* s, HashTable* indexHashTable, Vector<u32>* indices, Vector<Vector3>* coords, Vector<Vector3>* normals, Vector<Vector2>* uvcoords,
+                 Vector<BasicVertexData>* vertices) {
+    unsigned int p, t, n, occurences;
+    occurences = CountOccurrences(s, '/', 0);
+    
+    if (occurences == 2) {
+        if (sscanf(s, "%u/%u/%u", &p, &t, &n ) != 3) {
+            t = MAXU32;
+            sscanf(s, "%u//%u", &p, &n );
+        }
+    }
+    else if (occurences == 1) {
+        n = MAXU32;
+        sscanf(s, "%u/%u", &p, &t);
+    }
+    else {
+        t = MAXU32; n = MAXU32;
+        sscanf(s, "%u", &p);
+    }
+    // Put the res in the hash table
+    u32 val = indexHashTable->at(p, t, n, 0);
+    if (val == -1) {
+        val = indexHashTable->insert(p, t, n, 0);
+        vertices->push(ConstructVertex(coords, normals, uvcoords, p, t, n));
+    }
+    
+    indices->push(val);
+    
+    
+}
 
 
 

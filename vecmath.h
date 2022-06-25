@@ -23,6 +23,10 @@ struct Vector2 {
         struct {
             f32 x, y;
         };
+        struct {
+            f32 u; f32 v;
+        };
+        
         f32 data[2];
     };
     
@@ -296,6 +300,8 @@ struct Quaternion {
         data[2] = vec.z;
         data[3] = vec.w;
     }
+
+    Quaternion() {}
     f32 operator[](int index) {
         return data[index];
     }

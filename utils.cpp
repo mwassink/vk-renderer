@@ -69,4 +69,11 @@ void Allocator::bFree(u32 token) {
 
 Allocator allocator;
 
+int CountOccurrences(const char* s, char ch, char delim = 0)  {
+    int ctr = 0;
+    while (*s && *s != delim) ctr += (*s++ == ch);
+    return ctr;
+}
 
+//BasicModel LoadModelVertexData(const char* objFile) {  
+//}
