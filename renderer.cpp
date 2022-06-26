@@ -399,7 +399,7 @@ VkDescriptorSet Renderer::BasicDescriptorSetAllocation(VkDescriptorPool* pool, V
 }
 
 // (NOTE) This is where we put all of the data into the pipeline
-void Renderer::WriteBasicDescriptorSet(BasicDrawData* renderData, VkDescriptorSet* descriptorSet, BasicModel* model) {
+void Renderer::WriteBasicDescriptorSet(BasicDrawData* renderData, VkDescriptorSet& descriptorSet, BasicModel* model) {
     VkDescriptorImageInfo imgInfo = {
         model->modelTexture.sampler, model->modelTexture.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     };
@@ -412,15 +412,15 @@ void Renderer::WriteBasicDescriptorSet(BasicDrawData* renderData, VkDescriptorSe
     VkWriteDescriptorSet writes[3];
 
     writes[0] = {
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, *descriptorSet, 0, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
+        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, descriptorSet, 0, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
         nullptr, &matrixUniforms, nullptr
     };
     writes[1] = {
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, *descriptorSet, 1, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
+        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, descriptorSet, 1, 0, 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
         nullptr, &lightUniforms, nullptr
     };
     writes[2] = {
-        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, *descriptorSet, 2, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 
+        VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET, nullptr, descriptorSet, 2, 0, 1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 
         &imgInfo,nullptr,  nullptr
     };
 
@@ -604,7 +604,7 @@ void Renderer::DrawBasic(BasicRenderData* renderData, VkImageView* imgView, VkFr
 
 
 // Make the pipeline, render passes, etc
-void Renderer::InitBasicRender(void) {
+BasicRenderData Renderer::InitBasicRender(void) {
     BasicRenderData rData;
     rData.dsLayout = BasicDescriptorSetLayout();
     BasicPipelineLayout(&rData);
@@ -613,26 +613,23 @@ void Renderer::InitBasicRender(void) {
     auto pool = BasicDescriptorPool();
     auto set = BasicDescriptorSetAllocation(&pool, &rData.dsLayout);
     BasicPipeline(&rData);
+    return rData;
+    
 }
 
 // Make a vertex buffer, get textures, etc
 // The model is supposed to have all vertex data already in the struct, except for the file
 BasicModel Renderer::AddBasicModel(BasicModelFiles fileNames) {
     
-    BasicModel model;
-    
-       
-
-    // model.vertexBuffer = VertexBuffer( model.vData.sz * sizeof(BasicVertexData), model.vData.data  );
-    // model.indexBuffer = IndexBuffer(model.indices.sz * sizeof(u32), model.indices.data);
-    // auto ib = MakeBuffer()
-    // model.modelTexture = RGBATexture();
-    
+    BasicModel model = LoadModelObj(fileNames.objFile, fileNames.rgbaName);
+    model.vertexBuffer = VertexBuffer(model.vData.sz * sizeof (BasicVertexData), model.vData.data);
+    model.indexBuffer = IndexBuffer(model.indices.sz * sizeof(u32), model.indices.data);
+    return model;
 }
 
 // Write the descriptor set with the proper uniforms, do the draw
-void Renderer::LightPass() {
-    
+void Renderer::LightPass(BasicModel* model) {
+    //    WriteBasicDescriptorSet()
 }
 
 
@@ -766,10 +763,9 @@ void Renderer::ParseVertex(const char* s, HashTable* indexHashTable, Vector<u32>
         vertices->push(ConstructVertex(coords, normals, uvcoords, p, t, n));
     }
     
-    indices->push(val);
-    
-    
+    indices->push(val);  
 }
+
 
 
 

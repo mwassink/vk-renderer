@@ -37,6 +37,10 @@ struct Allocator {
   
 };
 
+inline void cpy(void* dst, void* src, u32 count) {
+    for (int i = 0; i < count; i++) ((char*)dst)[i] = ((char*) src)[i];
+}
+
 extern Allocator allocator;
 
 
@@ -62,18 +66,17 @@ struct Vector {
         cap = 20;
     }
 
-    void push(Type& data) {
+    void push(Type dataIn) {
         if (sz == cap) {
             auto oldData = data;
             auto oldToken = freeToken;
-            data = allocator.bAlloc(sz * 1.5 * sizeof(Type), &freeToken, 0);
-            memcpy(data, oldData, sz * sizeof(Type));
+            data = (Type*) allocator.bAlloc(sz * 1.5 * sizeof(Type), &freeToken, 0);
+            cpy(data, oldData, sz * sizeof(Type));
             allocator.bFree(oldToken);
-            sz++;
-            cap = sz * 1.5;
-            
 
+            cap = sz * 1.5;
         }
+        data[sz++] = dataIn;
     }
     
     u64 size() {
@@ -168,7 +171,7 @@ struct HashTable {
     
 };
 
-int CountOccurrences(const char* s, char ch, char delim = 0);
+int CountOccurrences(const char* s, char ch, char delim);
 
 
 

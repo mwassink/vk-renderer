@@ -101,7 +101,7 @@ struct Renderer {
     VkDescriptorSetLayout BasicDescriptorSetLayout(void);
     VkDescriptorPool BasicDescriptorPool(void);
     VkDescriptorSet BasicDescriptorSetAllocation(VkDescriptorPool* pool, VkDescriptorSetLayout* layout );
-    void WriteBasicDescriptorSet(BasicDrawData* renderData, VkDescriptorSet* descriptorSet, BasicModel* model);
+    void WriteBasicDescriptorSet(BasicDrawData* renderData, VkDescriptorSet& descriptorSet, BasicModel* model);
     
     void BasicPipelineLayout(BasicRenderData* renderData);
     VkRenderPass BasicRenderPass(VkFormat* swapChainFormat);
@@ -112,15 +112,15 @@ struct Renderer {
     void BasicRenderModel(BasicModel* model);
     void DrawBasic(BasicRenderData* renderData, VkImageView* imgView, VkFramebuffer* currentFB, VkCommandBuffer cb, VkImage img, BasicModel* model);
     void RefreshFramebuffer(BasicRenderData* rData, VkImageView* imgView, VkFramebuffer* fb );
-    void InitBasicRender(void);
+    BasicRenderData InitBasicRender(void);
     BasicModel AddBasicModel(BasicModelFiles fileNames);
     void UpdateModel(BasicModel* model);
-    void LightPass(void);
+    void LightPass(BasicModel* model);
     void MoveBufferGeneric(Buffer& fromStaging, Buffer& to);
     Buffer IndexBuffer(u32 sz, void* data);
     BasicModel LoadModelObj(const char* f, const char* imageFile);
     u32 CountTrianglesOccurences(const char* f);
-    BasicVertexData Renderer::ConstructVertex(Vector<Vector3>* coords, Vector<Vector3>* normals, Vector<Vector2>* uvcoords, u32 p, u32 t, u32 n  );
+    BasicVertexData ConstructVertex(Vector<Vector3>* coords, Vector<Vector3>* normals, Vector<Vector2>* uvcoords, u32 p, u32 t, u32 n  );
     void ParseVertex(const char* s, HashTable* indexHashTable, Vector<u32>* indices, Vector<Vector3>* coords, Vector<Vector3>* normals, Vector<Vector2>* uvcoords,
                  Vector<BasicVertexData>* vertices);
 
