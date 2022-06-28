@@ -4,10 +4,12 @@
 #define M_PI 3.1415926535897932384626433832795
 
 layout(set=0, binding=1) uniform lightingUniforms {
-  float power;
-  float shininess;
   vec4 lightPos; //position in camera space
   vec4 lightColor;
+  float power;
+  float shininess;
+
+  
 }
 
 layout(set=0, binding=2) uniform sampler2D tex;

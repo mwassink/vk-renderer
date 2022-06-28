@@ -33,8 +33,7 @@ struct BasicRenderData {
     VkPipelineLayout plLayout;
     VkPipeline pipeline;
     VkRenderPass rPass;
-    VkFramebuffer fb;
-    VkExtent2D extent;
+    
 
     
 };
@@ -60,11 +59,19 @@ struct BasicDrawData {
     Buffer lightingData;
 };
 
+struct BasicMatrices {
+    Matrix4 modelViewProjection;
+    Matrix4 modelView;
+};
+
+
 struct BasicModel {
+    BasicMatrices matrices;
     Vector<BasicVertexData> vData;
     Vector<u32> indices;
     Buffer vertexBuffer;
     Buffer indexBuffer;
+    Buffer matrixBuffer;
     Texture modelTexture;
     Quaternion rotation;
     f32 scale;
@@ -77,6 +84,20 @@ struct BasicModelFiles {
     const char* normalFile;
 };
 
+struct BasicLightData {
+    Vector4 position;
+    Vector4 lightColor;    
+    f32 power;
+    f32 shininess;
+};
+
+struct Light {
+    BasicLightData lightData;
+    Buffer uniformBuffer;
+};
+
+
+
 
 
 
@@ -85,7 +106,8 @@ struct BasicModelFiles {
 struct Renderer {
     
     VulkanContext ctx;
-
+    Buffer stagingBuffer;
+    
     Buffer MakeBuffer(u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits wantedProperty);
     
     Buffer UniformBuffer( u32 sz, void* data);
@@ -115,7 +137,9 @@ struct Renderer {
     BasicRenderData InitBasicRender(void);
     BasicModel AddBasicModel(BasicModelFiles fileNames);
     void UpdateModel(BasicModel* model);
-    void LightPass(BasicModel* model);
+    void LightPass(BasicModel* model, Light* light, BasicRenderData* rData,
+                   PerFrameData* frameData, Image* img   );
+    
     void MoveBufferGeneric(Buffer& fromStaging, Buffer& to);
     Buffer IndexBuffer(u32 sz, void* data);
     BasicModel LoadModelObj(const char* f, const char* imageFile);

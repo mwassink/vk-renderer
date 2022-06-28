@@ -118,7 +118,12 @@ void Renderer::MoveUniformFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuf
 }
 
 Buffer Renderer::StagingBuffer(u32 sz, void* data) {
-    
+
+    if (sz < stagingBuffer.size) {
+        toGPU(data, stagingBuffer.memory, sz);
+        return stagingBuffer;
+    }
+    // (TODO) cache an internal buffer if the size is fine
     Buffer internalBuffer = MakeBuffer(sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     toGPU(data, internalBuffer.memory, sz);
 
@@ -624,12 +629,30 @@ BasicModel Renderer::AddBasicModel(BasicModelFiles fileNames) {
     BasicModel model = LoadModelObj(fileNames.objFile, fileNames.rgbaName);
     model.vertexBuffer = VertexBuffer(model.vData.sz * sizeof (BasicVertexData), model.vData.data);
     model.indexBuffer = IndexBuffer(model.indices.sz * sizeof(u32), model.indices.data);
+    model.matrixBuffer = UniformBuffer(sizeof(BasicMatrices), &model.matrices);
     return model;
 }
 
+
 // Write the descriptor set with the proper uniforms, do the draw
-void Renderer::LightPass(BasicModel* model) {
-    //    WriteBasicDescriptorSet()
+void Renderer::LightPass(BasicModel* model, Light* light, BasicRenderData* rData,
+                         PerFrameData* frameData, Image* img   ) {
+    
+    // need to put the uniforms of the model into the buffer if I can
+    BasicDrawData drawData;
+    auto buff = StagingBuffer(sizeof(BasicMatrices), &model->matrices) ;
+    MoveUniformFromDMARegion(buff, model->matrixBuffer);
+
+    drawData.matrixUniforms = model->matrixBuffer;
+    buff = StagingBuffer(sizeof(BasicLightData), &light->lightData);
+    MoveUniformFromDMARegion(buff, light->uniformBuffer);
+    drawData.lightingData = light->uniformBuffer;
+    
+    WriteBasicDescriptorSet(&drawData, rData->descriptorSet, model);
+    DrawBasic(rData, &img->view, &frameData->framebuffer, frameData->commandBuffer, 
+              img->handle, model);
+        
+    
 }
 
 
