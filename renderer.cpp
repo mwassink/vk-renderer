@@ -635,27 +635,27 @@ BasicModel Renderer::AddBasicModel(BasicModelFiles fileNames) {
 
 
 // Write the descriptor set with the proper uniforms, do the draw
-void Renderer::LightPass(BasicModel* model, Light* light, BasicRenderData* rData,
+void Renderer::LightPassInternal(Vector<BasicModel>& models, Light* light, BasicRenderData* rData,
                          PerFrameData* frameData, Image* img   ) {
     
     // need to put the uniforms of the model into the buffer if I can
-    BasicDrawData drawData;
-    auto buff = StagingBuffer(sizeof(BasicMatrices), &model->matrices) ;
-    MoveUniformFromDMARegion(buff, model->matrixBuffer);
-
-    drawData.matrixUniforms = model->matrixBuffer;
-    buff = StagingBuffer(sizeof(BasicLightData), &light->lightData);
+    BasicDrawData drawData;    
+    auto buff = StagingBuffer(sizeof(BasicLightData), &light->lightData);
     MoveUniformFromDMARegion(buff, light->uniformBuffer);
     drawData.lightingData = light->uniformBuffer;
     
-    WriteBasicDescriptorSet(&drawData, rData->descriptorSet, model);
-    DrawBasic(rData, &img->view, &frameData->framebuffer, frameData->commandBuffer, 
-              img->handle, model);
+    for (int i = 0; i < models.sz; i++ ) {
+
+        BasicModel& model = models[i];
         
-    
+        buff = StagingBuffer(sizeof(BasicMatrices), &model.matrices) ;
+        MoveUniformFromDMARegion(buff, model.matrixBuffer);
+        drawData.matrixUniforms = model.matrixBuffer;
+        WriteBasicDescriptorSet(&drawData, rData->descriptorSet, &model);
+        DrawBasic(rData, &img->view, &frameData->framebuffer, frameData->commandBuffer, 
+                  img->handle, &model);
+    }    
 }
-
-
 BasicModel Renderer::LoadModelObj(const char* f, const char* imageFile) {
     BasicModel model;
 
@@ -789,8 +789,22 @@ void Renderer::ParseVertex(const char* s, HashTable* indexHashTable, Vector<u32>
     indices->push(val);  
 }
 
+void Renderer::Init(void){
+    ctx.Init();
+    
+}
 
+void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
 
+    Vector<BasicModel>& models = scene->models;
+    Vector<Light>& lights = scene->lights;
+    
+    PerFrameData* pfd = &ctx.frameResources[ctx.currFrame];
+    
+    for (int i = 0; i < lights.sz; i++ ) {
+        auto light = lights[i];
+        LightPassInternal(models, &light, &rData, pfd,&ctx.images[ctx.currFrame]  );
+    }
 
-
-
+    ctx.currFrame = (ctx.currFrame + 1) % NUM_IMAGES;
+}

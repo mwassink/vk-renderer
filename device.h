@@ -62,7 +62,7 @@ struct VulkanContext {
 
     VkCommandPool cmdPool = VK_NULL_HANDLE;
     PerFrameData frameResources[NUM_IMAGES];
-    
+    u32 currFrame = 0;
     
     
 	bool debugLayersOn;

@@ -96,17 +96,19 @@ struct Light {
     Buffer uniformBuffer;
 };
 
-
-
-
-
-
+struct BasicFlatScene {
+    Vector<BasicModel> models;
+    Vector<Light> lights;
+    
+};
 
 
 struct Renderer {
     
     VulkanContext ctx;
     Buffer stagingBuffer;
+    BasicRenderData rData;
+    
     
     Buffer MakeBuffer(u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits wantedProperty);
     
@@ -137,7 +139,7 @@ struct Renderer {
     BasicRenderData InitBasicRender(void);
     BasicModel AddBasicModel(BasicModelFiles fileNames);
     void UpdateModel(BasicModel* model);
-    void LightPass(BasicModel* model, Light* light, BasicRenderData* rData,
+    void LightPassInternal(Vector<BasicModel>& model, Light* light, BasicRenderData* rData,
                    PerFrameData* frameData, Image* img   );
     
     void MoveBufferGeneric(Buffer& fromStaging, Buffer& to);
@@ -148,6 +150,11 @@ struct Renderer {
     void ParseVertex(const char* s, HashTable* indexHashTable, Vector<u32>* indices, Vector<Vector3>* coords, Vector<Vector3>* normals, Vector<Vector2>* uvcoords,
                  Vector<BasicVertexData>* vertices);
 
+
+
+    void DrawBasicFlatScene(BasicFlatScene* scene);
+    void Init();
+    
 
     
    
