@@ -537,6 +537,14 @@ void VulkanContext::Cleanup() {
 }
 
 
+void VulkanContext::WindowChange(void) {
+  if (dev != VK_NULL_HANDLE) {
+    vkDeviceWaitIdle(dev);
+  }
+
+  Swapchain();
+  
+}
 
 
 

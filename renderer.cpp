@@ -800,11 +800,67 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     Vector<Light>& lights = scene->lights;
     
     PerFrameData* pfd = &ctx.frameResources[ctx.currFrame];
+
+    if (vkWaitForFences(ctx.dev, 1, &pfd->fence, VK_FALSE, 1000000000) != VK_SUCCESS) {
+      ctx.pform.FatalError("Error while waiting on fence", "VK Runtime Error");
+    }
+
+    vkResetFences(ctx.dev, 1, &pfd->fence);
+    u32 imgIndex;
+    
+    auto res = vkAcquireNextImageKHR(ctx.dev, ctx.sc.handle, UINT64_MAX,
+                                     pfd->presentReady, VK_NULL_HANDLE, &imgIndex);
+
+    switch (res) {
+    case VK_SUCCESS:
+    case VK_SUBOPTIMAL_KHR:
+      break;
+    case VK_ERROR_OUT_OF_DATE_KHR:
+      ctx.WindowChange();
+      return;
+    default:
+      ctx.pform.FatalError("Swapchain error during acquisition", "VK Runtime Error");
+    }
+
+    
+    
     
     for (int i = 0; i < lights.sz; i++ ) {
         auto light = lights[i];
         LightPassInternal(models, &light, &rData, pfd,&ctx.images[ctx.currFrame]  );
     }
+
+    VkPipelineStageFlags v = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    VkSubmitInfo sInfo = {
+      VK_STRUCTURE_TYPE_SUBMIT_INFO, nullptr, 1,
+      &pfd->presentReady, &v,
+      1, &pfd->commandBuffer,1, &pfd->renderingReady
+    };
+
+    if (vkQueueSubmit(ctx.graphicsPresentQueue, 1, &sInfo, pfd->fence) != VK_SUCCESS) {
+      return;
+    }
+    VkPresentInfoKHR pInfo = {
+      VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, nullptr, 1,
+      &pfd->renderingReady, 1, &ctx.sc.handle,
+      &imgIndex, nullptr
+    };
+
+    res = vkQueuePresentKHR(ctx.graphicsPresentQueue, &pInfo);
+
+    
+    switch (res) {
+    case VK_SUCCESS:
+      break;
+    case VK_SUBOPTIMAL_KHR:
+    case VK_ERROR_OUT_OF_DATE_KHR:
+      ctx.WindowChange();
+      return;
+    default:
+      ctx.pform.FatalError("Swapchain error during acquisition", "VK Runtime Error");
+    }
+
+    
 
     ctx.currFrame = (ctx.currFrame + 1) % NUM_IMAGES;
 }

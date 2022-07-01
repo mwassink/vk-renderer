@@ -94,7 +94,7 @@ struct VulkanContext {
     void Semaphores(void);
     void Fences(void);
     void Cleanup(void);
-	
+  void WindowChange(void);
     
 };
 
