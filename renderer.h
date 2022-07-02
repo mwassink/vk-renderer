@@ -1,8 +1,11 @@
 // Renderer, finally
 
-#ifndef RENDERER_H
-#define RENDERER_H
 
+#include "types.h"
+#include "device.h"
+#include "vecmath.h"
+#include "functions.h"
+#include "utils.h"
 
 struct Buffer {
 	VkBuffer handle;
@@ -151,7 +154,7 @@ struct Renderer {
                  Vector<BasicVertexData>* vertices);
 
 
-
+    BasicFlatScene SimpleScene(BasicModel* model, u32 numModels,  BasicLightData* data, u32 numLights);
     void DrawBasicFlatScene(BasicFlatScene* scene);
     void Init();
     
@@ -161,4 +164,4 @@ struct Renderer {
     
 };
 
-#endif
+

@@ -280,6 +280,9 @@ struct Quaternion {
         struct {
             f32 i, j, k, w;
         };
+        struct {
+            f32 x, y, z, w_r;
+        };
         f32 data[4];
     };
     
@@ -304,6 +307,63 @@ struct Quaternion {
     Quaternion() {}
     f32 operator[](int index) {
         return data[index];
+    }
+
+    Matrix3 RotationMatrix() {
+        f32 y2 = 2 * y;
+        f32 x2 = 2 * x;
+        f32 z2 = 2 * z;
+
+        f32 wx2 = w * x * 2;
+        f32 wy2 = w * y * 2;
+        f32 wz2 = w * z * 2;
+
+        f32 xx2 = x * x * 2;
+        f32 xy2 = x * y * 2;
+        f32 xz2 = x * z * 2;
+
+        f32 yy2 = y * y2;
+        f32 yz2 = y * z2;
+
+        f32 zz2 = z * z2;
+
+        return Matrix3(1-(yy2 + zz2), (xy2 + wz2), (xz2 - wy2),
+                (xy2 - wz2), 1-(xx2 + zz2), (yz2 + wx2),
+                (xz2 + wy2), (yz2 - wx2), 1-(xx2 + yy2)
+        );
+
+    }
+
+    void SetRotation(const Matrix3& m) {
+        f32 tr = m(0,0) + m(1,1) + m(2,2);
+
+        if (tr > 0) {
+            f32 s = sqrt(tr + 1) * 2.0f;
+            w = s * .25f;
+            f32 si = 1/s;
+            x = (m(2,1) - m(1,2)) * si;
+            y = (m(0, 2) - m(2,0)) * si;
+            z= (m(1,0) - m(0,1)) * si;
+        } else if ( m(0,0) > m(1,1) && m(0,0) > m(2,2)) {
+            f32 s = sqrt(1.0f + m(0,0) - m(1,1) - m(2,2)) * 2;
+            w = (m(2,1) - m(1,2)) / s;
+            x = .25 * s;
+            y = (m(0,1) +m(1,0)) / s;
+            z = (m(2,0) + m(0,2)) /s;
+        } else if (m(1,1) > m(2,2)) {
+            f32 s= sqrt(1.0f + m(1,1) - m(0,0)-m(2,2));
+            w = (m(0,2) - m(2,0))/s;
+            x = m(0,1) + m(1,0) /s;
+            y = .25 * s;
+            z = (m(1,2) + m(2,1)) /s;
+        } else {
+            f32 s = sqrt(1.0f + m(2,2) - m(0,0)-m(1,1));
+            w = (m(1,0) - m(0,1)) /s;
+            x = (m(2,0) + m(0,2)) /s;
+            y = (m(1,2) + m(2,1)) /s;
+            z = .25 * s;
+        }
+        
     }
     
 };

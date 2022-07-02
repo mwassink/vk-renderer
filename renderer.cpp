@@ -1,13 +1,10 @@
 // 05/29/2022 22:17
 
 
-#include "types.h"
-#include "device.h"
-#include "vecmath.h"
+
 #include "renderer.h"
 
-#include "functions.h"
-#include "utils.h"
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "include/stb_image.h"
 
