@@ -630,6 +630,25 @@ BasicModel Renderer::AddBasicModel(BasicModelFiles fileNames) {
     return model;
 }
 
+Light Renderer::AddLight(Vector4 pos, Vector4 color, f32 power) {
+    Light l;
+    BasicLightData& ld = l.lightData;
+    ld.lightColor = color;
+    ld.position = pos;
+    ld.power = power;
+    l.uniformBuffer = UniformBuffer(sizeof(BasicLightData), &ld);
+    return l;
+
+}
+
+
+Light Renderer::AddLight(const BasicLightData* lightData) {
+    Light l;
+    l.lightData = *lightData;
+    l.uniformBuffer = UniformBuffer(sizeof(BasicLightData), &lightData);
+    return l;
+}
+
 
 // Write the descriptor set with the proper uniforms, do the draw
 void Renderer::LightPassInternal(Vector<BasicModel>& models, Light* light, BasicRenderData* rData,
@@ -860,4 +879,19 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     
 
     ctx.currFrame = (ctx.currFrame + 1) % NUM_IMAGES;
+}
+
+BasicFlatScene Renderer::SimpleScene(BasicModel* modelsIn, u32 numModels, BasicLightData* lightsIn, u32 numLights) {
+    BasicFlatScene s;
+
+    Vector<BasicModel> models(numModels);
+    Vector<Light> lights(numLights);
+
+    for (u32 i = 0;  i < numModels; i++) {
+        models[i] = modelsIn[i];
+    }
+    for (u32 i = 0; i < numLights; i++) {
+        lights[i] = AddLight(&lightsIn[i]);
+    }
+    return s;
 }

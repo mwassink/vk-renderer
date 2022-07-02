@@ -7,4 +7,10 @@ build\*
 .vscode\*
 res\*
 res/*
-*.obj    
+*.obj   
+*.jpg
+*.png
+*.bmp
+*.data
+*.mtl
+tests/barrel*

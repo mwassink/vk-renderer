@@ -156,6 +156,8 @@ struct Renderer {
 
     BasicFlatScene SimpleScene(BasicModel* model, u32 numModels,  BasicLightData* data, u32 numLights);
     void DrawBasicFlatScene(BasicFlatScene* scene);
+    Light AddLight(Vector4 pos, Vector4 color, f32 power);
+    Light AddLight(const BasicLightData* lightData);
     void Init();
     
 
