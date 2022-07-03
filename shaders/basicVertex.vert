@@ -3,6 +3,7 @@
 layout(set=0, binding=0) uniform matrixUniforms {
   mat4 mvp; // -> world space -> camera space -> clip space
   mat4 mv; // model matrix (to world space)
+  mat3 normalMatrix;
 };
 
 layout(location=0) in vec4 vPosition;

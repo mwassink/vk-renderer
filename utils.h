@@ -119,7 +119,7 @@ inline u32 hash4to1(u32 a, u32 b, u32 c, u32 d) {
 }
 
 inline bool  equal(const TripleKeyVal& l, const TripleKeyVal& r) {
-    for (int i = 0; i < 4; i++) if (l.arr[i] != r.arr[i]) return false;
+    for (int i = 0; i < 3; i++) if (l.arr[i] != r.arr[i]) return false;
     return true;
     
 }

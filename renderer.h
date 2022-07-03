@@ -65,6 +65,7 @@ struct BasicDrawData {
 struct BasicMatrices {
     Matrix4 modelViewProjection;
     Matrix4 modelView;
+    Matrix3 normalMatrix;
 };
 
 

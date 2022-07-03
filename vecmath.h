@@ -142,6 +142,8 @@ struct Matrix3 {
         _20 = __02; _21 = __12; _22 = __22;
     }
 
+    Matrix3() {};
+
     Matrix3(Vector3 x, Vector3 y, Vector3 z) : c1(x), c2(y), c3(z) {}
 
     Matrix3 transpose() {

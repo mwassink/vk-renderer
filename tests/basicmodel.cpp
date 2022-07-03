@@ -8,7 +8,7 @@ int CALLBACK WinMain(HINSTANCE hInstance,
     Renderer vkRenderer;
     vkRenderer.Init();
     vkRenderer.InitBasicRender();
-    auto model = vkRenderer.LoadModelObj("barrel/barrel.obj", "barrel/img.png");
+    auto model = vkRenderer.LoadModelObj("tests/barrel/barrel.obj", "tests/barrel/img.png");
     Vector3 r = Vector3(1,1,1);
     r.normalize();
 
@@ -19,13 +19,14 @@ int CALLBACK WinMain(HINSTANCE hInstance,
     model.rotation = q;
     Vector4 pos = Vector4(1, 1, 1, 1);
     Vector4 color = Vector4(1, 1, 1, 1);
-    Light l;
+    BasicLightData lightData;
 
-    l.lightData.lightColor = color;
-    l.lightData.position = pos;
-    l.lightData.power = 10.0f;
-    l.lightData.shininess = 1.0f;
-    
+    lightData.lightColor = color;
+    lightData.position = pos;
+    lightData.power = 10.0f;
+    lightData.shininess = 1.0f;
+
+    BasicFlatScene scene = vkRenderer.SimpleScene(&model, 1, &lightData, 1);
     
 
 
