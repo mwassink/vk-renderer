@@ -50,7 +50,8 @@ Buffer Renderer::MakeBuffer(u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits w
                 i
             };
             if (vkAllocateMemory(ctx.dev, &allocInfo, nullptr, &buff.memory) == VK_SUCCESS) {
-                return buff;
+                if (vkBindBufferMemory(ctx.dev, buff.handle, buff.memory, 0) == VK_SUCCESS)
+                    return buff;
             }
         }
     }
@@ -606,16 +607,16 @@ void Renderer::DrawBasic(BasicRenderData* renderData, VkImageView* imgView, VkFr
 
 
 // Make the pipeline, render passes, etc
-BasicRenderData Renderer::InitBasicRender(void) {
-    BasicRenderData rData;
+void Renderer::InitBasicRender(void) {
+    
     rData.dsLayout = BasicDescriptorSetLayout();
     BasicPipelineLayout(&rData);
     auto rp = BasicRenderPass(&ctx.sc.format.format);
     rData.rPass = rp;
     auto pool = BasicDescriptorPool();
     auto set = BasicDescriptorSetAllocation(&pool, &rData.dsLayout);
+    rData.descriptorSet = set;
     BasicPipeline(&rData);
-    return rData;
     
 }
 
@@ -893,5 +894,9 @@ BasicFlatScene Renderer::SimpleScene(BasicModel* modelsIn, u32 numModels, BasicL
     for (u32 i = 0; i < numLights; i++) {
         lights[i] = AddLight(&lightsIn[i]);
     }
+    models.sz = numModels;
+    lights.sz = numLights;
+    s.models = models;
+    s.lights = lights;
     return s;
 }

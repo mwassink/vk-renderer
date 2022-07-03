@@ -70,7 +70,7 @@ int VulkanContext::EnsureSuperset(Vector<VkLayerProperties>& given, Vector<const
 		bool found = false;
 		for (size_t j = 0; j < given.size(); j++) {
 			const char* wantedStr = wanted[i];
-			const char* givenStr = given[i].layerName;
+			const char* givenStr = given[j].layerName;
 			if (!strcmp(wantedStr, givenStr)) {
 				found = true;
 				break;
@@ -80,7 +80,7 @@ int VulkanContext::EnsureSuperset(Vector<VkLayerProperties>& given, Vector<const
 			return static_cast<int>(i);
 		}
 	}
-	return static_cast<int>(given.size());
+	return static_cast<int>(wanted.size());
 }
 
 

@@ -8,7 +8,8 @@ int CALLBACK WinMain(HINSTANCE hInstance,
     Renderer vkRenderer;
     vkRenderer.Init();
     vkRenderer.InitBasicRender();
-    auto model = vkRenderer.LoadModelObj("tests/barrel/barrel.obj", "tests/barrel/img.png");
+    BasicModelFiles files = {"tests/barrel/barrel.obj", "tests/barrel/img.png"};
+    auto model = vkRenderer.AddBasicModel(files);
     Vector3 r = Vector3(1,1,1);
     r.normalize();
 
@@ -27,6 +28,7 @@ int CALLBACK WinMain(HINSTANCE hInstance,
     lightData.shininess = 1.0f;
 
     BasicFlatScene scene = vkRenderer.SimpleScene(&model, 1, &lightData, 1);
+    vkRenderer.DrawBasicFlatScene(&scene);
     
 
 

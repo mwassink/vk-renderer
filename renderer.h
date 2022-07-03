@@ -140,7 +140,7 @@ struct Renderer {
     void BasicRenderModel(BasicModel* model);
     void DrawBasic(BasicRenderData* renderData, VkImageView* imgView, VkFramebuffer* currentFB, VkCommandBuffer cb, VkImage img, BasicModel* model);
     void RefreshFramebuffer(BasicRenderData* rData, VkImageView* imgView, VkFramebuffer* fb );
-    BasicRenderData InitBasicRender(void);
+    void InitBasicRender(void);
     BasicModel AddBasicModel(BasicModelFiles fileNames);
     void UpdateModel(BasicModel* model);
     void LightPassInternal(Vector<BasicModel>& model, Light* light, BasicRenderData* rData,

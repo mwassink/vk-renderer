@@ -20,19 +20,19 @@ struct QueueParams {
 
 
 struct PerFrameData {
-    VkFramebuffer framebuffer;
-    VkCommandBuffer commandBuffer;
-    VkSemaphore renderingReady;
-    VkSemaphore presentReady;
-    VkFence fence;
+    VkFramebuffer framebuffer = VK_NULL_HANDLE;
+    VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
+    VkSemaphore renderingReady = VK_NULL_HANDLE;
+    VkSemaphore presentReady = VK_NULL_HANDLE;
+    VkFence fence = VK_NULL_HANDLE;
 };
 
 
 struct Image {
-    VkImage handle;
-    VkImageView view;
-    VkSampler sampler;
-    VkDeviceMemory mem;
+    VkImage handle = VK_NULL_HANDLE;
+    VkImageView view = VK_NULL_HANDLE;
+    VkSampler sampler = VK_NULL_HANDLE;
+    VkDeviceMemory mem = VK_NULL_HANDLE;
     
 };
 
@@ -40,7 +40,7 @@ struct Image {
 struct SwapchainData {
     VkSwapchainKHR handle = VK_NULL_HANDLE;
     VkSurfaceFormatKHR format;
-    VkDeviceMemory memory;
+    VkDeviceMemory memory = VK_NULL_HANDLE;
 };
 
 

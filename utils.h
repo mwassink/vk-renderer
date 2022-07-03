@@ -83,7 +83,7 @@ struct Vector {
         return sz;
     }
     
-    ~Vector() {
+    void release() {
         allocator.bFree(freeToken);
     }
 };
