@@ -77,9 +77,11 @@ struct BasicModel {
     Buffer indexBuffer;
     Buffer matrixBuffer;
     Texture modelTexture;
+  VkDescriptorSet descriptorSet;  
     Quaternion rotation;
     f32 scale;
     u32 numPrimitives;
+    u32 matrixBufferOffset;
 };
 
 struct BasicModelFiles {
@@ -98,11 +100,15 @@ struct BasicLightData {
 struct Light {
     BasicLightData lightData;
     Buffer uniformBuffer;
+  u32 lightBufferOffset;
+  
 };
 
 struct BasicFlatScene {
     Vector<BasicModel> models;
     Vector<Light> lights;
+  u32 uniformSpace;
+  
     
 };
 
@@ -112,7 +118,8 @@ struct Renderer {
     VulkanContext ctx;
     Buffer stagingBuffer;
     BasicRenderData rData;
-    
+  Buffer uniformPool;
+  
     
     Buffer MakeBuffer(u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits wantedProperty);
     
@@ -160,6 +167,8 @@ struct Renderer {
     Light AddLight(Vector4 pos, Vector4 color, f32 power);
     Light AddLight(const BasicLightData* lightData);
     void Init();
+
+  void SetupUniforms(BasicFlatScene* scene);
     
 
     

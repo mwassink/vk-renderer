@@ -62,14 +62,8 @@ Buffer Renderer::MakeBuffer(u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits w
 
 Buffer Renderer::UniformBuffer(u32 sz, void* data) {
     
-    Buffer uniformBuffer = MakeBuffer(sz, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );
-
-    // CPU can't do DMA on local memory, so that's what the staging buffer is for
-
-    Buffer stagingBuffer = StagingBuffer(sz, data);
-    
-    MoveUniformFromDMARegion(stagingBuffer, uniformBuffer);
-    return uniformBuffer;
+  return this->uniformPool;
+  
 }
 
 void Renderer::MoveBufferGeneric(Buffer& stagingBuffer, Buffer& targetBuffer ) {
@@ -632,6 +626,7 @@ BasicModel Renderer::AddBasicModel(BasicModelFiles fileNames) {
     model.vertexBuffer = VertexBuffer(model.vData.sz * sizeof (BasicVertexData), model.vData.data);
     model.indexBuffer = IndexBuffer(model.indices.sz * sizeof(u32), model.indices.data);
     model.matrixBuffer = UniformBuffer(sizeof(BasicMatrices), &model.matrices);
+    model.descriptorSet = BasicDescriptorSetAllocation()
     return model;
 }
 
@@ -661,7 +656,7 @@ void Renderer::LightPassInternal(Vector<BasicModel>& models, Light* light, Basic
     
     // need to put the uniforms of the model into the buffer if I can
     BasicDrawData drawData;    
-    auto buff = StagingBuffer(sizeof(BasicLightData), &light->lightData);
+    f32  buff = StagingBuffer(sizeof(BasicLightData), &light->lightData);
     MoveUniformFromDMARegion(buff, light->uniformBuffer);
     drawData.lightingData = light->uniformBuffer;
     
@@ -844,6 +839,7 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     }
 
     
+    SetupUniforms(scene);
     
     
     for (int i = 0; i < lights.sz; i++ ) {
@@ -903,4 +899,45 @@ BasicFlatScene Renderer::SimpleScene(BasicModel* modelsIn, u32 numModels, BasicL
     s.models = models;
     s.lights = lights;
     return s;
+}
+
+void SetupUniforms(BasicFlatScene * scene ) {
+  // 7/4/2022
+  //Make a staging buffer for all of these
+  // Move the stuff from the staging buffer and assign each of these
+  // an offset
+
+  u32 neededSpace = sizeof(BasicMatrices) * scene->models.sz + sizeof(BasicLightData) * scene->lights.sz;
+
+  Buffer stagingBuffer = MakeBuffer(neededSpace, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  void* loc;
+  if (vkMapMemory(ctx.dev, stagingBuffer.memory, 0, neededSpace, 0, &loc) != VK_SUCCESS) {
+    ctx.pform.FatalError("Unable to map memory for staging buffer", "VK Runtime Error");
+    
+  }
+  u32 spaceCounter = 0;
+  char* copyTarget = (char*) loc;
+  for (int i = 0; i < scene->models.sz; i++) {
+    scene->models[i].matrixBufferOffset = spaceCounter;
+    memcpy(copyTarget, &scene->models.matrices, sizeof(BasicMatrices));
+    copyTarget += sizeof(BasicMatrices);
+    spaceCounter += sizeof(BasicMatrices);
+  }
+  for (int i = 0; i < scene->lights.sz; i++) {
+    scene->lights[i].lightBufferOffset = spaceCounter;
+    memcpy(copyTarget, &scene->lights.lightData, sizeof(BasicLightData));
+    copyTarget += sizeof(BasicLightData);
+    spaceCounter += sizeof(BasicLightData);
+  }
+
+  VkMappedMemoryRange flush = {
+    VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE, nullptr,
+        stagingBuffer.memory, 0, neededSpace
+  };
+  
+  vkFlushMappedMemoryRanges(ctx.dev, 1,&flush );
+  vkUnmapMemory(ctx.dev, stagingBuffer.memory);
+    
+  
 }
