@@ -29,7 +29,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) 
     return 0;
 }
 
-
+void Window::Show(void) {
+    ShowWindow(handle, SW_SHOWNORMAL);
+    UpdateWindow(handle);
+}
 
 
 
@@ -142,5 +145,9 @@ void* Platform::GetMemory(u32 ct, u32* bytesReturned) {
 
 void Platform::FreeMemory(void* data) {
     VirtualFree(data, 0, MEM_RELEASE);
+}
+
+void Platform::ShowWindow() {
+    window.Show();
 }
 

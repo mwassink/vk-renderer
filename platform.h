@@ -55,6 +55,7 @@ struct Platform{
   void ReleaseFileData(FileData* data);
 	void* GetMemory(u32 count, u32* bytesReturned);
 	void FreeMemory(void* data);
+	void ShowWindow(void);
     
 };
 

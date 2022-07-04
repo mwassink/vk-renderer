@@ -28,7 +28,16 @@ int CALLBACK WinMain(HINSTANCE hInstance,
     lightData.shininess = 1.0f;
 
     BasicFlatScene scene = vkRenderer.SimpleScene(&model, 1, &lightData, 1);
-    vkRenderer.DrawBasicFlatScene(&scene);
+
+    bool run = true;
+    
+    vkRenderer.ctx.pform.ShowWindow();
+    for (;run;) {
+
+        vkRenderer.DrawBasicFlatScene(&scene);
+    }
+
+
     
 
 

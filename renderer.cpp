@@ -588,6 +588,8 @@ void Renderer::DrawBasic(BasicRenderData* renderData, VkImageView* imgView, VkFr
     VkRect2D scissor = { {0, 0}, {static_cast<u32>(ctx.ext.width), static_cast<u32>(ctx.ext.height)}};
     VkDeviceSize offset = 0;
     // Do an instanced call instead
+    vkCmdSetViewport( cb, 0, 1, &viewport );
+    vkCmdSetScissor( cb, 0, 1, &scissor );
     vkCmdBindVertexBuffers(cb, 0, 1, &model->vertexBuffer.handle, &offset);
     vkCmdBindIndexBuffer(cb, model->indexBuffer.handle, offset, VK_INDEX_TYPE_UINT32);
     vkCmdBindDescriptorSets(cb ,VK_PIPELINE_BIND_POINT_GRAPHICS, renderData->plLayout, 0, 1, &renderData->descriptorSet, 0, 0);
