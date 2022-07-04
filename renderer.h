@@ -121,7 +121,7 @@ struct Renderer {
     Buffer VertexBuffer( u32 sz, void* data);
     void toGPU(void* from, VkDeviceMemory mem, u32 sz );
     Texture RGBATexture(const char* fileName);
-    void FillTexture(u32 sz, void* data, Texture* tex);
+    void FillTexture( void* data, Texture* tex);
     void AllocMemoryImage(u32 sz, VkImage handle, VkMemoryPropertyFlagBits wantedProperty, VkDeviceMemory* mem);
 
     void BasicRenderPass(void);
@@ -133,7 +133,7 @@ struct Renderer {
     
     void BasicPipelineLayout(BasicRenderData* renderData);
     VkRenderPass BasicRenderPass(VkFormat* swapChainFormat);
-    VkPipeline BasicPipeline(BasicRenderData* renderData);
+    void BasicPipeline(BasicRenderData* renderData);
     VkShaderModule ShaderModule(const char* spirvFileName);
     void MoveUniformFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuffer);
     void MoveVertexBufferFromDMARegion(Buffer &StagingBuffer, Buffer &targetBuffer);

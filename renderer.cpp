@@ -143,7 +143,7 @@ Buffer Renderer::VertexBuffer( u32 sz, void* data) {
 }
 
 Buffer Renderer::IndexBuffer(u32 sz, void* data) {
-    Buffer iBuffer= MakeBuffer(sz, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    Buffer iBuffer= MakeBuffer(sz, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     Buffer sBuffer=  StagingBuffer(sz, data);
     MoveBufferGeneric(sBuffer, iBuffer);
     return iBuffer;
@@ -241,8 +241,8 @@ Texture Renderer::RGBATexture(const char* fileName) {
         ctx.pform.FatalError("Vk Image Creation Error ", "VK Runtime Error");
     }
 
+    FillTexture(imageData, &tex);
     return tex;
-    
 }
 
 
@@ -269,7 +269,8 @@ void Renderer::AllocMemoryImage(u32 sz, VkImage handle, VkMemoryPropertyFlagBits
     ctx.pform.FatalError("Error while allocating image memory", "Vulkan Runtime Error");
 }
 
-void Renderer::FillTexture(u32 sz, void* data, Texture* tex) {
+void Renderer::FillTexture(void* data, Texture* tex) {
+    u32 sz = tex->comps * tex->w * tex->h;
     AllocMemoryImage(sz, tex->imageHandle, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &tex->mem);
     if ( vkBindImageMemory(ctx.dev, tex->imageHandle, tex->mem, 0) != VK_SUCCESS) {
         ctx.pform.FatalError("Unable to bind image to mem", "VK Runtime Error");
@@ -475,7 +476,7 @@ VkShaderModule Renderer::ShaderModule(const char* spirvFileName) {
 }
 
 
-VkPipeline Renderer::BasicPipeline(BasicRenderData* renderData) {
+void Renderer::BasicPipeline(BasicRenderData* renderData) {
     VkPipeline pl;
 
     auto vMod = ShaderModule("shaders/basicVertex.spv");
@@ -533,13 +534,13 @@ VkPipeline Renderer::BasicPipeline(BasicRenderData* renderData) {
         ctx.pform.FatalError("Could not create the basic pipeline" ,"Vulkan Runtime Error");
     }
 
-    return pl;
+    renderData->pipeline = pl;
 }
 
 void Renderer::RefreshFramebuffer(BasicRenderData* rData, VkImageView* imgView, VkFramebuffer* currFB) {
-    if (currFB != VK_NULL_HANDLE) {
+    if (*currFB != VK_NULL_HANDLE) {
         vkDestroyFramebuffer(ctx.dev, *currFB, nullptr);
-        currFB = VK_NULL_HANDLE;
+        *currFB = VK_NULL_HANDLE;
     }
 
     VkFramebufferCreateInfo fbCrInfo = {
@@ -591,6 +592,7 @@ void Renderer::DrawBasic(BasicRenderData* renderData, VkImageView* imgView, VkFr
     vkCmdBindIndexBuffer(cb, model->indexBuffer.handle, offset, VK_INDEX_TYPE_UINT32);
     vkCmdBindDescriptorSets(cb ,VK_PIPELINE_BIND_POINT_GRAPHICS, renderData->plLayout, 0, 1, &renderData->descriptorSet, 0, 0);
     vkCmdDrawIndexed(cb, model->numPrimitives, 1, 0, 0, 0);
+    
     vkCmdEndRenderPass(cb);
     VkImageMemoryBarrier drawPresBarrier = {
               VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT,  
