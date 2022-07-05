@@ -391,7 +391,7 @@ VkDescriptorSet Renderer::BasicDescriptorSetAllocation(VkDescriptorPool* pool, V
 }
 
 // (NOTE) This is where we put all of the data into the pipeline
-void Renderer::WriteBasicDescriptorSet(Light* light, VkDescriptorSet& descriptorSet, BasicModel* model) {
+void Renderer::WriteBasicDescriptorSet(VkDescriptorSet& descriptorSet, BasicModel* model) {
     VkDescriptorImageInfo imgInfo = {
         model->modelTexture.sampler, model->modelTexture.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     };
@@ -761,22 +761,29 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
 
     
     SetupUniforms(scene);
-
+    VkCommandBuffer& cb = pfd->commandBuffer;
+    // hopefully this happens only once?
     if (uniformPoolNeedsCopy) {
         CopyUniformPool(pfd->commandBuffer);
-        uniformPoolNeedsCopy = true;
+        uniformPoolNeedsCopy = false;
     }
 
     Image& img = ctx.images[ctx.currFrame];
     RefreshFramebuffer(&rData, &img.view, &pfd->framebuffer );
 
-
+    // write the descriptors with the first light
+    Light dummyLight = {0};
+    UpdateLightUniform(&dummyLight, cb, false);
     VkCommandBufferBeginInfo cbInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, 0,
         VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, 0
     };
+
+    for (int i = 0; i < models.sz; i++) {
+        WriteBasicDescriptorSet(models[i].descriptorSet, &models[i]);
+    }
         
     vkBeginCommandBuffer(pfd->commandBuffer, &cbInfo );
-    VkCommandBuffer& cb = pfd->commandBuffer;
+
 
     
 
@@ -806,14 +813,12 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     vkCmdSetScissor( cb, 0, 1, &scissor );
 
     
-        
+
+    
     for (int i = 0; i < lights.sz; i++ ) {
         auto light = lights[i];
 
-        // copy into the buffer that all models point into
-        
-
-        // then set barrier
+        UpdateLightUniform(&light, cb, true);
         for (int j = 0; j < models.sz; j++) {
 
             BasicModel& model = models[j];
@@ -952,12 +957,13 @@ void Renderer::CopyUniformPool(VkCommandBuffer& cb) {
 }
 
 
-void Renderer::UpdateLightUniform(Light* light, VkCommandBuffer& cb) {
+void Renderer::UpdateLightUniform(Light* light, VkCommandBuffer& cb, bool recording = true) {
 
     Buffer tmpBuffer = StagingBuffer(sizeof(BasicLightData), light);
     if (!lbOK) {
         basicLightBuffer = MakeBuffer(sizeof(BasicLightData), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );        
     }
+    if (!recording) return;
     VkBufferCopy buffCopyInfo = {0, 0, tmpBuffer.size };
     vkCmdCopyBuffer(cb, tmpBuffer.handle, basicLightBuffer.handle, 1, &buffCopyInfo);
     VkBufferMemoryBarrier rwBarrier {
