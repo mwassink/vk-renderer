@@ -75,7 +75,7 @@ struct BasicModel {
     Vector<u32> indices;
     Buffer vertexBuffer;
     Buffer indexBuffer;
-    Buffer matrixBuffer;
+
     Texture modelTexture;
   VkDescriptorSet descriptorSet;  
     Quaternion rotation;
@@ -98,16 +98,13 @@ struct BasicLightData {
 };
 
 struct Light {
-    BasicLightData lightData;
-    Buffer uniformBuffer;
-  u32 lightBufferOffset;
-  
+    BasicLightData lightData; 
 };
 
 struct BasicFlatScene {
     Vector<BasicModel> models;
     Vector<Light> lights;
-  u32 uniformSpace;
+    u32 uniformSpace;
   
     
 };
@@ -118,25 +115,27 @@ struct Renderer {
     VulkanContext ctx;
     Buffer stagingBuffer;
     BasicRenderData rData;
-  Buffer uniformPool;
-  
+    Buffer uniformHostPool;
+    Buffer uniformMegaPool;
+    Buffer basicLightBuffer;
+    VkDescriptorPool descriptorPool;
+    VkDescriptorSetLayout basicLayout;
+    bool uniformPoolNeedsCopy = true;
+    bool lbOK = false;
+
     
     Buffer MakeBuffer(u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits wantedProperty);
-    
-    Buffer UniformBuffer( u32 sz, void* data);
     Buffer StagingBuffer( u32 sz, void* data);
     Buffer VertexBuffer( u32 sz, void* data);
     void toGPU(void* from, VkDeviceMemory mem, u32 sz );
     Texture RGBATexture(const char* fileName);
     void FillTexture( void* data, Texture* tex);
     void AllocMemoryImage(u32 sz, VkImage handle, VkMemoryPropertyFlagBits wantedProperty, VkDeviceMemory* mem);
-
     void BasicRenderPass(void);
-
     VkDescriptorSetLayout BasicDescriptorSetLayout(void);
     VkDescriptorPool BasicDescriptorPool(void);
     VkDescriptorSet BasicDescriptorSetAllocation(VkDescriptorPool* pool, VkDescriptorSetLayout* layout );
-    void WriteBasicDescriptorSet(BasicDrawData* renderData, VkDescriptorSet& descriptorSet, BasicModel* model);
+    void WriteBasicDescriptorSet(Light* light, VkDescriptorSet& descriptorSet, BasicModel* model);
     
     void BasicPipelineLayout(BasicRenderData* renderData);
     VkRenderPass BasicRenderPass(VkFormat* swapChainFormat);
@@ -145,13 +144,18 @@ struct Renderer {
     void MoveUniformFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuffer);
     void MoveVertexBufferFromDMARegion(Buffer &StagingBuffer, Buffer &targetBuffer);
     void BasicRenderModel(BasicModel* model);
+
+    #if 0
     void DrawBasic(BasicRenderData* renderData, VkImageView* imgView, VkFramebuffer* currentFB, VkCommandBuffer cb, VkImage img, BasicModel* model);
+    #endif
+
+    
     void RefreshFramebuffer(BasicRenderData* rData, VkImageView* imgView, VkFramebuffer* fb );
     void InitBasicRender(void);
     BasicModel AddBasicModel(BasicModelFiles fileNames);
     void UpdateModel(BasicModel* model);
     void LightPassInternal(Vector<BasicModel>& model, Light* light, BasicRenderData* rData,
-                   PerFrameData* frameData, Image* img   );
+                           PerFrameData* frameData, Image* img   );
     
     void MoveBufferGeneric(Buffer& fromStaging, Buffer& to);
     Buffer IndexBuffer(u32 sz, void* data);
@@ -159,7 +163,7 @@ struct Renderer {
     u32 CountTrianglesOccurences(const char* f);
     BasicVertexData ConstructVertex(Vector<Vector3>* coords, Vector<Vector3>* normals, Vector<Vector2>* uvcoords, u32 p, u32 t, u32 n  );
     void ParseVertex(const char* s, HashTable* indexHashTable, Vector<u32>* indices, Vector<Vector3>* coords, Vector<Vector3>* normals, Vector<Vector2>* uvcoords,
-                 Vector<BasicVertexData>* vertices);
+                     Vector<BasicVertexData>* vertices);
 
 
     BasicFlatScene SimpleScene(BasicModel* model, u32 numModels,  BasicLightData* data, u32 numLights);
@@ -168,8 +172,9 @@ struct Renderer {
     Light AddLight(const BasicLightData* lightData);
     void Init();
 
-  void SetupUniforms(BasicFlatScene* scene);
-    
+    void SetupUniforms(BasicFlatScene* scene);
+    void CopyUniformPool(VkCommandBuffer& cb);
+    void UpdateLightUniform(Light* light, VkCommandBuffer& cb);
 
     
    

@@ -60,12 +60,6 @@ Buffer Renderer::MakeBuffer(u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits w
     return buff;
 }
 
-Buffer Renderer::UniformBuffer(u32 sz, void* data) {
-    
-  return this->uniformPool;
-  
-}
-
 void Renderer::MoveBufferGeneric(Buffer& stagingBuffer, Buffer& targetBuffer ) {
     auto cmdBuffer = ctx.frameResources[0].commandBuffer;
     VkCommandBufferBeginInfo bInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, 0, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, 0};
@@ -397,15 +391,15 @@ VkDescriptorSet Renderer::BasicDescriptorSetAllocation(VkDescriptorPool* pool, V
 }
 
 // (NOTE) This is where we put all of the data into the pipeline
-void Renderer::WriteBasicDescriptorSet(BasicDrawData* renderData, VkDescriptorSet& descriptorSet, BasicModel* model) {
+void Renderer::WriteBasicDescriptorSet(Light* light, VkDescriptorSet& descriptorSet, BasicModel* model) {
     VkDescriptorImageInfo imgInfo = {
         model->modelTexture.sampler, model->modelTexture.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     };
     VkDescriptorBufferInfo matrixUniforms = {
-        renderData->matrixUniforms.handle, 0, renderData->matrixUniforms.size
+        uniformMegaPool.handle, model->matrixBufferOffset, sizeof(BasicMatrices)
     };
     VkDescriptorBufferInfo lightUniforms = {
-        renderData->lightingData.handle, 0, renderData->lightingData.size
+        basicLightBuffer.handle, 0, sizeof(BasicLightData)
     };
     VkWriteDescriptorSet writes[3];
 
@@ -550,68 +544,17 @@ void Renderer::RefreshFramebuffer(BasicRenderData* rData, VkImageView* imgView, 
 }
 
 // Initialize the data before calling this
-void Renderer::DrawBasic(BasicRenderData* renderData, VkImageView* imgView, VkFramebuffer* currentFB,
-                         VkCommandBuffer cb, VkImage img, BasicModel* model) {
-    
-    RefreshFramebuffer(renderData, imgView, currentFB);
-
-    VkCommandBufferBeginInfo cbBeginInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, 0,
-        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, 0
-    };
-
-    vkBeginCommandBuffer(cb, &cbBeginInfo);
-    VkImageSubresourceRange srr = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1,0,1};
-    VkImageMemoryBarrier prDrawBarrier = {
-        VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, 0, VK_ACCESS_MEMORY_READ_BIT,
-        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        ctx.gqFamilyIndex, ctx.gqFamilyIndex, img, srr
-    };
-    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &prDrawBarrier);
-    
-    VkClearValue clearVal = {1.0f, 1.0f, 1.0f, 1.0f};
-    VkRect2D rect = { {0, 0}, ctx.ext};
-    
-        
-    VkRenderPassBeginInfo rpBeginInfo = {
-        VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, 0, renderData->rPass,
-        *currentFB, rect, 1, &clearVal
-    };
-    vkCmdBeginRenderPass(cb, &rpBeginInfo, VK_SUBPASS_CONTENTS_INLINE );
-    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,  renderData->pipeline);
-    VkViewport viewport = { 0, 0, static_cast<float>(ctx.ext.width),static_cast<float>(ctx.ext.height), 0, 1 };
-    VkRect2D scissor = { {0, 0}, {static_cast<u32>(ctx.ext.width), static_cast<u32>(ctx.ext.height)}};
-    VkDeviceSize offset = 0;
-    // Do an instanced call instead
-    vkCmdSetViewport( cb, 0, 1, &viewport );
-    vkCmdSetScissor( cb, 0, 1, &scissor );
-    vkCmdBindVertexBuffers(cb, 0, 1, &model->vertexBuffer.handle, &offset);
-    vkCmdBindIndexBuffer(cb, model->indexBuffer.handle, offset, VK_INDEX_TYPE_UINT32);
-    vkCmdBindDescriptorSets(cb ,VK_PIPELINE_BIND_POINT_GRAPHICS, renderData->plLayout, 0, 1, &renderData->descriptorSet, 0, 0);
-    vkCmdDrawIndexed(cb, model->numPrimitives, 1, 0, 0, 0);
-    
-    vkCmdEndRenderPass(cb);
-    VkImageMemoryBarrier drawPresBarrier = {
-              VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT,  
-              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, ctx.gqFamilyIndex, ctx.gqFamilyIndex,
-              img, srr
-    };
-    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &drawPresBarrier );
-    if (vkEndCommandBuffer(cb) != VK_SUCCESS) {
-        ctx.pform.FatalError("Unable to record basic draw command buffer", "Vulkan Runtime Error" );
-    }
-        
-    
-}
-
 
 // Make the pipeline, render passes, etc
 void Renderer::InitBasicRender(void) {
     
     rData.dsLayout = BasicDescriptorSetLayout();
+    basicLayout = rData.dsLayout;
     BasicPipelineLayout(&rData);
     auto rp = BasicRenderPass(&ctx.sc.format.format);
     rData.rPass = rp;
     auto pool = BasicDescriptorPool();
+    descriptorPool = pool;
     auto set = BasicDescriptorSetAllocation(&pool, &rData.dsLayout);
     rData.descriptorSet = set;
     BasicPipeline(&rData);
@@ -625,8 +568,8 @@ BasicModel Renderer::AddBasicModel(BasicModelFiles fileNames) {
     BasicModel model = LoadModelObj(fileNames.objFile, fileNames.rgbaName);
     model.vertexBuffer = VertexBuffer(model.vData.sz * sizeof (BasicVertexData), model.vData.data);
     model.indexBuffer = IndexBuffer(model.indices.sz * sizeof(u32), model.indices.data);
-    model.matrixBuffer = UniformBuffer(sizeof(BasicMatrices), &model.matrices);
-    model.descriptorSet = BasicDescriptorSetAllocation()
+    model.descriptorSet = BasicDescriptorSetAllocation(&descriptorPool, &basicLayout);
+
     return model;
 }
 
@@ -636,7 +579,7 @@ Light Renderer::AddLight(Vector4 pos, Vector4 color, f32 power) {
     ld.lightColor = color;
     ld.position = pos;
     ld.power = power;
-    l.uniformBuffer = UniformBuffer(sizeof(BasicLightData), &ld);
+
     return l;
 
 }
@@ -645,33 +588,11 @@ Light Renderer::AddLight(Vector4 pos, Vector4 color, f32 power) {
 Light Renderer::AddLight(const BasicLightData* lightData) {
     Light l;
     l.lightData = *lightData;
-    l.uniformBuffer = UniformBuffer(sizeof(BasicLightData), &lightData);
     return l;
 }
 
 
-// Write the descriptor set with the proper uniforms, do the draw
-void Renderer::LightPassInternal(Vector<BasicModel>& models, Light* light, BasicRenderData* rData,
-                         PerFrameData* frameData, Image* img   ) {
-    
-    // need to put the uniforms of the model into the buffer if I can
-    BasicDrawData drawData;    
-    f32  buff = StagingBuffer(sizeof(BasicLightData), &light->lightData);
-    MoveUniformFromDMARegion(buff, light->uniformBuffer);
-    drawData.lightingData = light->uniformBuffer;
-    
-    for (int i = 0; i < models.sz; i++ ) {
 
-        BasicModel& model = models[i];
-        
-        buff = StagingBuffer(sizeof(BasicMatrices), &model.matrices) ;
-        MoveUniformFromDMARegion(buff, model.matrixBuffer);
-        drawData.matrixUniforms = model.matrixBuffer;
-        WriteBasicDescriptorSet(&drawData, rData->descriptorSet, &model);
-        DrawBasic(rData, &img->view, &frameData->framebuffer, frameData->commandBuffer, 
-                  img->handle, &model);
-    }    
-}
 BasicModel Renderer::LoadModelObj(const char* f, const char* imageFile) {
     BasicModel model;
 
@@ -840,11 +761,79 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
 
     
     SetupUniforms(scene);
+
+    if (uniformPoolNeedsCopy) {
+        CopyUniformPool(pfd->commandBuffer);
+        uniformPoolNeedsCopy = true;
+    }
+
+    Image& img = ctx.images[ctx.currFrame];
+    RefreshFramebuffer(&rData, &img.view, &pfd->framebuffer );
+
+
+    VkCommandBufferBeginInfo cbInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, 0,
+        VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, 0
+    };
+        
+    vkBeginCommandBuffer(pfd->commandBuffer, &cbInfo );
+    VkCommandBuffer& cb = pfd->commandBuffer;
+
     
+
+        VkImageSubresourceRange srr = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1,0,1};
+    VkImageMemoryBarrier prDrawBarrier = {
+        VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, 0, VK_ACCESS_MEMORY_READ_BIT,
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        ctx.gqFamilyIndex, ctx.gqFamilyIndex, img.handle, srr
+    };
+    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &prDrawBarrier);
     
+    VkClearValue clearVal = {1.0f, 1.0f, 1.0f, 1.0f};
+    VkRect2D rect = { {0, 0}, ctx.ext};
+    
+        
+    VkRenderPassBeginInfo rpBeginInfo = {
+        VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, 0, rData.rPass,
+        pfd->framebuffer, rect, 1, &clearVal
+    };
+    vkCmdBeginRenderPass(cb, &rpBeginInfo, VK_SUBPASS_CONTENTS_INLINE );
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,  rData.pipeline);
+    VkViewport viewport = { 0, 0, static_cast<float>(ctx.ext.width),static_cast<float>(ctx.ext.height), 0, 1 };
+    VkRect2D scissor = { {0, 0}, {static_cast<u32>(ctx.ext.width), static_cast<u32>(ctx.ext.height)}};
+    VkDeviceSize offset = 0;
+    
+    vkCmdSetViewport( cb, 0, 1, &viewport );
+    vkCmdSetScissor( cb, 0, 1, &scissor );
+
+    
+        
     for (int i = 0; i < lights.sz; i++ ) {
         auto light = lights[i];
-        LightPassInternal(models, &light, &rData, pfd,&ctx.images[ctx.currFrame]  );
+
+        // copy into the buffer that all models point into
+        
+
+        // then set barrier
+        for (int j = 0; j < models.sz; j++) {
+
+            BasicModel& model = models[j];
+            
+            vkCmdBindVertexBuffers(cb, 0, 1, &model.vertexBuffer.handle, &offset);
+            vkCmdBindIndexBuffer(cb, model.indexBuffer.handle, offset, VK_INDEX_TYPE_UINT32);
+            vkCmdBindDescriptorSets(cb ,VK_PIPELINE_BIND_POINT_GRAPHICS, rData.plLayout, 0, 1, &model.descriptorSet, 0, 0);
+            vkCmdDrawIndexed(cb, model.numPrimitives, 1, 0, 0, 0);
+        }
+        
+    }    
+    vkCmdEndRenderPass(cb);
+    VkImageMemoryBarrier drawPresBarrier = {
+              VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT,  
+              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, ctx.gqFamilyIndex, ctx.gqFamilyIndex,
+              img.handle, srr
+    };
+    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &drawPresBarrier );
+    if (vkEndCommandBuffer(cb) != VK_SUCCESS) {
+        ctx.pform.FatalError("Unable to record basic draw command buffer", "Vulkan Runtime Error" );
     }
 
     VkPipelineStageFlags v = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -901,15 +890,15 @@ BasicFlatScene Renderer::SimpleScene(BasicModel* modelsIn, u32 numModels, BasicL
     return s;
 }
 
-void SetupUniforms(BasicFlatScene * scene ) {
+void Renderer::SetupUniforms(BasicFlatScene * scene ) {
   // 7/4/2022
   //Make a staging buffer for all of these
   // Move the stuff from the staging buffer and assign each of these
   // an offset
 
-  u32 neededSpace = sizeof(BasicMatrices) * scene->models.sz + sizeof(BasicLightData) * scene->lights.sz;
+  u32 neededSpace = sizeof(BasicMatrices) * scene->models.sz;
 
-  Buffer stagingBuffer = MakeBuffer(neededSpace, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+  uniformHostPool = MakeBuffer(neededSpace, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   void* loc;
   if (vkMapMemory(ctx.dev, stagingBuffer.memory, 0, neededSpace, 0, &loc) != VK_SUCCESS) {
@@ -920,17 +909,19 @@ void SetupUniforms(BasicFlatScene * scene ) {
   char* copyTarget = (char*) loc;
   for (int i = 0; i < scene->models.sz; i++) {
     scene->models[i].matrixBufferOffset = spaceCounter;
-    memcpy(copyTarget, &scene->models.matrices, sizeof(BasicMatrices));
+    memcpy(copyTarget, &scene->models[i].matrices, sizeof(BasicMatrices));
     copyTarget += sizeof(BasicMatrices);
     spaceCounter += sizeof(BasicMatrices);
   }
+#if 0
+  
   for (int i = 0; i < scene->lights.sz; i++) {
     scene->lights[i].lightBufferOffset = spaceCounter;
-    memcpy(copyTarget, &scene->lights.lightData, sizeof(BasicLightData));
+    memcpy(copyTarget, &scene->lights[i].lightData, sizeof(BasicLightData));
     copyTarget += sizeof(BasicLightData);
     spaceCounter += sizeof(BasicLightData);
   }
-
+#endif
   VkMappedMemoryRange flush = {
     VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE, nullptr,
         stagingBuffer.memory, 0, neededSpace
@@ -938,6 +929,40 @@ void SetupUniforms(BasicFlatScene * scene ) {
   
   vkFlushMappedMemoryRanges(ctx.dev, 1,&flush );
   vkUnmapMemory(ctx.dev, stagingBuffer.memory);
+
+  Buffer uniformMegaBuffer = MakeBuffer(neededSpace, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+  uniformPoolNeedsCopy = true;
+     
+}
+
+// 07/04/2022 REQUIRES command buffers to be in the recording state
+void Renderer::CopyUniformPool(VkCommandBuffer& cb) {
+
+    VkBufferCopy buffCopyInfo = {0, 0, uniformMegaPool.size };
+    vkCmdCopyBuffer(cb, uniformHostPool.handle, uniformMegaPool.handle, 1, &buffCopyInfo);
+    VkBufferMemoryBarrier rwBarrier {
+        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT, VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED, uniformMegaPool.handle, 0, VK_WHOLE_SIZE
+    };
+    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, nullptr, 1, &rwBarrier, 0, nullptr);
     
-  
+    
+}
+
+
+void Renderer::UpdateLightUniform(Light* light, VkCommandBuffer& cb) {
+
+    Buffer tmpBuffer = StagingBuffer(sizeof(BasicLightData), light);
+    if (!lbOK) {
+        basicLightBuffer = MakeBuffer(sizeof(BasicLightData), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );        
+    }
+    VkBufferCopy buffCopyInfo = {0, 0, tmpBuffer.size };
+    vkCmdCopyBuffer(cb, tmpBuffer.handle, basicLightBuffer.handle, 1, &buffCopyInfo);
+    VkBufferMemoryBarrier rwBarrier {
+        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT, VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED, uniformMegaPool.handle, 0, VK_WHOLE_SIZE
+    };
+    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, nullptr, 1, &rwBarrier, 0, nullptr);
 }
