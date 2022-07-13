@@ -110,7 +110,7 @@ Buffer Renderer::StagingBuffer(u32 sz, void* data) {
         return stagingBuffer;
     }
     // (TODO) cache an internal buffer if the size is fine
-    Buffer internalBuffer = MakeBuffer(sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    Buffer internalBuffer = MakeBuffer(sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
     toGPU(data, internalBuffer.memory, sz);
 
     return internalBuffer;
@@ -363,14 +363,14 @@ VkDescriptorSetLayout Renderer::BasicDescriptorSetLayout() {
 
 }
 
-VkDescriptorPool Renderer::BasicDescriptorPool(void) {
+VkDescriptorPool Renderer::BasicDescriptorPool(u32 nDescriptors) {
     VkDescriptorPool pool;
     Vector<VkDescriptorPoolSize> szes(3);
-    szes[0] = {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1};
-    szes[1] = {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1};
-    szes[2] = {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1};
+    szes[0] = {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors};
+    szes[1] = {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, nDescriptors};
+    szes[2] = {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, nDescriptors};
 
-    VkDescriptorPoolCreateInfo cInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr, 0, 1, (u32) szes.sz, szes.data};
+    VkDescriptorPoolCreateInfo cInfo = {VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr, 0, nDescriptors, (u32) szes.sz, szes.data};
     if (vkCreateDescriptorPool(ctx.dev, &cInfo,nullptr, &pool  ) != VK_SUCCESS) {
         ctx.pform.FatalError("Could not create descriptor pool for basic shader", "Vulkan Runtime Error");
     }
@@ -387,6 +387,7 @@ VkDescriptorSet Renderer::BasicDescriptorSetAllocation(VkDescriptorPool* pool, V
     if (vkAllocateDescriptorSets(ctx.dev, &allocInfo,&descriptorSet) != VK_SUCCESS) {
         ctx.pform.FatalError("Could not make a descriptor set", "Vulkan Runtime Error");
     }
+
     return descriptorSet;
 }
 
@@ -546,14 +547,14 @@ void Renderer::RefreshFramebuffer(BasicRenderData* rData, VkImageView* imgView, 
 // Initialize the data before calling this
 
 // Make the pipeline, render passes, etc
-void Renderer::InitBasicRender(void) {
+void Renderer::InitBasicRender(u32 numDescriptors) {
     
     rData.dsLayout = BasicDescriptorSetLayout();
     basicLayout = rData.dsLayout;
     BasicPipelineLayout(&rData);
     auto rp = BasicRenderPass(&ctx.sc.format.format);
     rData.rPass = rp;
-    auto pool = BasicDescriptorPool();
+    auto pool = BasicDescriptorPool(numDescriptors);
     descriptorPool = pool;
     auto set = BasicDescriptorSetAllocation(&pool, &rData.dsLayout);
     rData.descriptorSet = set;
@@ -763,10 +764,6 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     SetupUniforms(scene);
     VkCommandBuffer& cb = pfd->commandBuffer;
     // hopefully this happens only once?
-    if (uniformPoolNeedsCopy) {
-        CopyUniformPool(pfd->commandBuffer);
-        uniformPoolNeedsCopy = false;
-    }
 
     Image& img = ctx.images[ctx.currFrame];
     RefreshFramebuffer(&rData, &img.view, &pfd->framebuffer );
@@ -783,6 +780,10 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     }
         
     vkBeginCommandBuffer(pfd->commandBuffer, &cbInfo );
+    if (uniformPoolNeedsCopy) {
+        CopyUniformPool(pfd->commandBuffer);
+        uniformPoolNeedsCopy = false;
+    }
 
 
     
@@ -803,14 +804,6 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
         VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, 0, rData.rPass,
         pfd->framebuffer, rect, 1, &clearVal
     };
-    vkCmdBeginRenderPass(cb, &rpBeginInfo, VK_SUBPASS_CONTENTS_INLINE );
-    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,  rData.pipeline);
-    VkViewport viewport = { 0, 0, static_cast<float>(ctx.ext.width),static_cast<float>(ctx.ext.height), 0, 1 };
-    VkRect2D scissor = { {0, 0}, {static_cast<u32>(ctx.ext.width), static_cast<u32>(ctx.ext.height)}};
-    VkDeviceSize offset = 0;
-    
-    vkCmdSetViewport( cb, 0, 1, &viewport );
-    vkCmdSetScissor( cb, 0, 1, &scissor );
 
     
 
@@ -819,6 +812,15 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
         auto light = lights[i];
 
         UpdateLightUniform(&light, cb, true);
+        vkCmdBeginRenderPass(cb, &rpBeginInfo, VK_SUBPASS_CONTENTS_INLINE );
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,  rData.pipeline);
+        VkViewport viewport = { 0, 0, static_cast<float>(ctx.ext.width),static_cast<float>(ctx.ext.height), 0, 1 };
+        VkRect2D scissor = { {0, 0}, {static_cast<u32>(ctx.ext.width), static_cast<u32>(ctx.ext.height)}};
+        VkDeviceSize offset = 0;
+    
+        vkCmdSetViewport( cb, 0, 1, &viewport );
+        vkCmdSetScissor( cb, 0, 1, &scissor );
+
         for (int j = 0; j < models.sz; j++) {
 
             BasicModel& model = models[j];
@@ -828,9 +830,9 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
             vkCmdBindDescriptorSets(cb ,VK_PIPELINE_BIND_POINT_GRAPHICS, rData.plLayout, 0, 1, &model.descriptorSet, 0, 0);
             vkCmdDrawIndexed(cb, model.numPrimitives, 1, 0, 0, 0);
         }
-        
+        vkCmdEndRenderPass(cb);
     }    
-    vkCmdEndRenderPass(cb);
+
     VkImageMemoryBarrier drawPresBarrier = {
               VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT,  
               VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, ctx.gqFamilyIndex, ctx.gqFamilyIndex,
@@ -904,9 +906,13 @@ void Renderer::SetupUniforms(BasicFlatScene * scene ) {
   u32 neededSpace = sizeof(BasicMatrices) * scene->models.sz;
 
   uniformHostPool = MakeBuffer(neededSpace, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+                                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
+  
+  
+  
   void* loc;
-  if (vkMapMemory(ctx.dev, stagingBuffer.memory, 0, neededSpace, 0, &loc) != VK_SUCCESS) {
+  if (vkMapMemory(ctx.dev, uniformHostPool.memory, 0, neededSpace, 0, &loc) != VK_SUCCESS) {
     ctx.pform.FatalError("Unable to map memory for staging buffer", "VK Runtime Error");
     
   }
@@ -929,13 +935,13 @@ void Renderer::SetupUniforms(BasicFlatScene * scene ) {
 #endif
   VkMappedMemoryRange flush = {
     VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE, nullptr,
-        stagingBuffer.memory, 0, neededSpace
+        uniformHostPool.memory, 0, neededSpace
   };
   
   vkFlushMappedMemoryRanges(ctx.dev, 1,&flush );
-  vkUnmapMemory(ctx.dev, stagingBuffer.memory);
+  vkUnmapMemory(ctx.dev, uniformHostPool.memory);
 
-  Buffer uniformMegaBuffer = MakeBuffer(neededSpace, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+  uniformMegaPool = MakeBuffer(neededSpace, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
   uniformPoolNeedsCopy = true;

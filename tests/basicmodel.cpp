@@ -7,7 +7,7 @@ int CALLBACK WinMain(HINSTANCE hInstance,
                      int showCode){
     Renderer vkRenderer;
     vkRenderer.Init();
-    vkRenderer.InitBasicRender();
+    vkRenderer.InitBasicRender(10000);
     BasicModelFiles files = {"tests/barrel/barrel.obj", "tests/barrel/img.png"};
     auto model = vkRenderer.AddBasicModel(files);
     Vector3 r = Vector3(1,1,1);

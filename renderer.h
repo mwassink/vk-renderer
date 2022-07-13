@@ -133,7 +133,7 @@ struct Renderer {
     void AllocMemoryImage(u32 sz, VkImage handle, VkMemoryPropertyFlagBits wantedProperty, VkDeviceMemory* mem);
     void BasicRenderPass(void);
     VkDescriptorSetLayout BasicDescriptorSetLayout(void);
-    VkDescriptorPool BasicDescriptorPool(void);
+    VkDescriptorPool BasicDescriptorPool(u32 numDescriptors);
     VkDescriptorSet BasicDescriptorSetAllocation(VkDescriptorPool* pool, VkDescriptorSetLayout* layout );
     void WriteBasicDescriptorSet(VkDescriptorSet& descriptorSet, BasicModel* model);
     
@@ -151,7 +151,7 @@ struct Renderer {
 
     
     void RefreshFramebuffer(BasicRenderData* rData, VkImageView* imgView, VkFramebuffer* fb );
-    void InitBasicRender(void);
+    void InitBasicRender(u32 numDescriptors);
     BasicModel AddBasicModel(BasicModelFiles fileNames);
     void UpdateModel(BasicModel* model);
     void LightPassInternal(Vector<BasicModel>& model, Light* light, BasicRenderData* rData,
