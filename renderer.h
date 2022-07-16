@@ -122,6 +122,8 @@ struct Renderer {
     VkDescriptorSetLayout basicLayout;
     bool uniformPoolNeedsCopy = true;
     bool lbOK = false;
+    bool fenceSet[3];
+    bool sceneNeedsUpdate = true;
 
     
     Buffer MakeBuffer(u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits wantedProperty);
@@ -175,7 +177,8 @@ struct Renderer {
     void SetupUniforms(BasicFlatScene* scene);
     void CopyUniformPool(VkCommandBuffer& cb);
     void UpdateLightUniform(Light* light, VkCommandBuffer& cb, bool recording);
-
+    void UpdateDescriptors(Vector<BasicModel>& models);
+    u32  RoundUp(u32);
     
    
     

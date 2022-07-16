@@ -17,7 +17,11 @@ Buffer::Buffer(){
 		size = 0;
 }
 
+
 Buffer Renderer::MakeBuffer(u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits wantedProperty) {
+#define FLUSHMULTIPLE 0x40
+
+    assert(sizeIn % FLUSHMULTIPLE == 0 );
     Buffer buff;
     buff.size = sizeIn;
     VkBufferCreateInfo bufferCreateInfo = {
@@ -104,35 +108,30 @@ void Renderer::MoveUniformFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuf
 }
 
 Buffer Renderer::StagingBuffer(u32 sz, void* data) {
-
+    assert(sz % FLUSHMULTIPLE == 0 );
     if (sz < stagingBuffer.size) {
         toGPU(data, stagingBuffer.memory, sz);
         return stagingBuffer;
     }
     // (TODO) cache an internal buffer if the size is fine
-    Buffer internalBuffer = MakeBuffer(sz, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-    toGPU(data, internalBuffer.memory, sz);
+    stagingBuffer = MakeBuffer(RoundUp(sz), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    toGPU(data, stagingBuffer.memory, sz);
 
-    return internalBuffer;
+    return stagingBuffer;
 }
 
 Buffer Renderer::VertexBuffer( u32 sz, void* data) {
-    Buffer vBuffer = MakeBuffer(sz, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-
-    Buffer stagingBuffer = StagingBuffer(sz, data);
-
+    assert(sz % FLUSHMULTIPLE == 0 );
+    Buffer vBuffer = MakeBuffer(RoundUp(sz), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    Buffer stagingBuffer = StagingBuffer(RoundUp(sz), data);
     MoveVertexBufferFromDMARegion(stagingBuffer, vBuffer);
-    
     return vBuffer;
-
-    
-    
-
 }
 
 Buffer Renderer::IndexBuffer(u32 sz, void* data) {
-    Buffer iBuffer= MakeBuffer(sz, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-    Buffer sBuffer=  StagingBuffer(sz, data);
+    assert(sz % FLUSHMULTIPLE == 0 );
+    Buffer iBuffer= MakeBuffer(RoundUp(sz), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    Buffer sBuffer=  StagingBuffer(RoundUp(sz), data);
     MoveBufferGeneric(sBuffer, iBuffer);
     return iBuffer;
     
@@ -170,14 +169,17 @@ void Renderer::MoveVertexBufferFromDMARegion(Buffer &stagingBuffer, Buffer &targ
 
 void Renderer::toGPU(void* data, VkDeviceMemory mem, u32 sz ) {
     
+    assert(sz % FLUSHMULTIPLE == 0 );
+
+
     void* map_location;
-    if (vkMapMemory(ctx.dev,  mem, 0, sz, 0, &map_location) != VK_SUCCESS) {
+    if (vkMapMemory(ctx.dev,  mem, 0, RoundUp(sz), 0, &map_location) != VK_SUCCESS) {
         ctx.pform.FatalError("Unable to map memory", "Vulkan Runtime Error");
     }
     memcpy(map_location, data, sz);
     VkMappedMemoryRange flushable = {
         VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE, nullptr,
-        mem, 0, sz
+        mem, 0, RoundUp(sz)
     };
 
     vkFlushMappedMemoryRanges(ctx.dev, 1, &flushable);
@@ -258,7 +260,7 @@ void Renderer::AllocMemoryImage(u32 sz, VkImage handle, VkMemoryPropertyFlagBits
 }
 
 void Renderer::FillTexture(void* data, Texture* tex) {
-    u32 sz = tex->comps * tex->w * tex->h;
+    u32 sz = RoundUp(tex->comps * tex->w * tex->h);
     AllocMemoryImage(sz, tex->imageHandle, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &tex->mem);
     if ( vkBindImageMemory(ctx.dev, tex->imageHandle, tex->mem, 0) != VK_SUCCESS) {
         ctx.pform.FatalError("Unable to bind image to mem", "VK Runtime Error");
@@ -567,8 +569,8 @@ void Renderer::InitBasicRender(u32 numDescriptors) {
 BasicModel Renderer::AddBasicModel(BasicModelFiles fileNames) {
     
     BasicModel model = LoadModelObj(fileNames.objFile, fileNames.rgbaName);
-    model.vertexBuffer = VertexBuffer(model.vData.sz * sizeof (BasicVertexData), model.vData.data);
-    model.indexBuffer = IndexBuffer(model.indices.sz * sizeof(u32), model.indices.data);
+    model.vertexBuffer = VertexBuffer(RoundUp(model.vData.sz* sizeof (BasicVertexData)), model.vData.data);
+    model.indexBuffer = IndexBuffer(RoundUp(model.indices.sz* sizeof(u32)), model.indices.data);
     model.descriptorSet = BasicDescriptorSetAllocation(&descriptorPool, &basicLayout);
 
     return model;
@@ -728,7 +730,9 @@ void Renderer::ParseVertex(const char* s, HashTable* indexHashTable, Vector<u32>
 }
 
 void Renderer::Init(void){
+    fenceSet[0] = false; fenceSet[1] = false; fenceSet[2] = false;
     ctx.Init();
+
     
 }
 
@@ -744,6 +748,7 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     }
 
     vkResetFences(ctx.dev, 1, &pfd->fence);
+    fenceSet[ctx.currFrame] = true;
     u32 imgIndex;
     
     auto res = vkAcquireNextImageKHR(ctx.dev, ctx.sc.handle, UINT64_MAX,
@@ -761,7 +766,7 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     }
 
     
-    SetupUniforms(scene);
+
     VkCommandBuffer& cb = pfd->commandBuffer;
     // hopefully this happens only once?
 
@@ -775,9 +780,20 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
         VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, 0
     };
 
-    for (int i = 0; i < models.sz; i++) {
-        WriteBasicDescriptorSet(models[i].descriptorSet, &models[i]);
+    if (sceneNeedsUpdate) {
+        for (int i = 0; i < NUM_IMAGES; i++) {
+        
+            if (ctx.currFrame != i && fenceSet[i] && vkWaitForFences(ctx.dev, 1, &pfd->fence, VK_FALSE, 1000000000) != VK_SUCCESS) {
+                ctx.pform.FatalError("Error while waiting on fence", "VK Runtime Error");
+            }   
+        }
+        SetupUniforms(scene);
+        UpdateDescriptors(models);
+
     }
+
+
+    sceneNeedsUpdate = false;
         
     vkBeginCommandBuffer(pfd->commandBuffer, &cbInfo );
     if (uniformPoolNeedsCopy) {
@@ -788,7 +804,7 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
 
     
 
-        VkImageSubresourceRange srr = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1,0,1};
+    VkImageSubresourceRange srr = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1,0,1};
     VkImageMemoryBarrier prDrawBarrier = {
         VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, 0, VK_ACCESS_MEMORY_READ_BIT,
         VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
@@ -903,7 +919,7 @@ void Renderer::SetupUniforms(BasicFlatScene * scene ) {
   // Move the stuff from the staging buffer and assign each of these
   // an offset
 
-  u32 neededSpace = sizeof(BasicMatrices) * scene->models.sz;
+  u32 neededSpace = RoundUp(sizeof(BasicMatrices) * scene->models.sz);
 
   uniformHostPool = MakeBuffer(neededSpace, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
@@ -912,7 +928,7 @@ void Renderer::SetupUniforms(BasicFlatScene * scene ) {
   
   
   void* loc;
-  if (vkMapMemory(ctx.dev, uniformHostPool.memory, 0, neededSpace, 0, &loc) != VK_SUCCESS) {
+  if (vkMapMemory(ctx.dev, uniformHostPool.memory, 0, RoundUp(neededSpace), 0, &loc) != VK_SUCCESS) {
     ctx.pform.FatalError("Unable to map memory for staging buffer", "VK Runtime Error");
     
   }
@@ -935,7 +951,7 @@ void Renderer::SetupUniforms(BasicFlatScene * scene ) {
 #endif
   VkMappedMemoryRange flush = {
     VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE, nullptr,
-        uniformHostPool.memory, 0, neededSpace
+        uniformHostPool.memory, 0, RoundUp(neededSpace)
   };
   
   vkFlushMappedMemoryRanges(ctx.dev, 1,&flush );
@@ -965,16 +981,33 @@ void Renderer::CopyUniformPool(VkCommandBuffer& cb) {
 
 void Renderer::UpdateLightUniform(Light* light, VkCommandBuffer& cb, bool recording = true) {
 
-    Buffer tmpBuffer = StagingBuffer(sizeof(BasicLightData), light);
+    Buffer tmpBuffer = StagingBuffer(RoundUp(sizeof(BasicLightData)), light);
     if (!lbOK) {
-        basicLightBuffer = MakeBuffer(sizeof(BasicLightData), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );        
+        basicLightBuffer = MakeBuffer(RoundUp(sizeof(BasicLightData)), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );        
+        lbOK = true;
     }
     if (!recording) return;
-    VkBufferCopy buffCopyInfo = {0, 0, tmpBuffer.size };
+    VkBufferCopy buffCopyInfo = {0, 0, RoundUp(sizeof(BasicLightData)) };
     vkCmdCopyBuffer(cb, tmpBuffer.handle, basicLightBuffer.handle, 1, &buffCopyInfo);
     VkBufferMemoryBarrier rwBarrier {
         VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT, VK_QUEUE_FAMILY_IGNORED,
         VK_QUEUE_FAMILY_IGNORED, uniformMegaPool.handle, 0, VK_WHOLE_SIZE
     };
     vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, nullptr, 1, &rwBarrier, 0, nullptr);
+}
+
+
+    
+void Renderer::UpdateDescriptors(Vector<BasicModel>&  models) {
+    
+    for (int i = 0; i < models.sz; i++) {
+        WriteBasicDescriptorSet(models[i].descriptorSet, &models[i]);
+    }
+}
+
+u32 Renderer::RoundUp(u32 sz) {
+
+    if (sz % FLUSHMULTIPLE == 0) return sz;
+    u32 rem = sz % FLUSHMULTIPLE;
+    return sz - rem + FLUSHMULTIPLE;
 }
