@@ -1011,3 +1011,15 @@ u32 Renderer::RoundUp(u32 sz) {
     u32 rem = sz % FLUSHMULTIPLE;
     return sz - rem + FLUSHMULTIPLE;
 }
+
+bool Renderer::Runnable(void) {
+    return !ctx.pform.window.finished;
+}
+
+void Renderer::WindowUpdates(void) {
+    ctx.pform.window.Update();
+    if (ctx.pform.window.swapchainValid == false) {
+        ctx.Swapchain();
+    }
+
+}

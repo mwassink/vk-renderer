@@ -13,8 +13,9 @@ struct Window {
 
     HINSTANCE inst =0;
     HWND handle = 0;
-    bool renderable = false;
-    
+    bool swapchainValid = false;
+    bool finished = false;
+    int w, h;
    	bool Create(const char*);
    	void Show();
    	void Update();

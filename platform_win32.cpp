@@ -11,16 +11,27 @@ const char* platformSurfaceExtensionName= VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
 
 extern Platform* pform;
 
+int __WINDOWHEIGHT = 0;
+int __WINDOWWIDTH = 0;
+bool __SWAPCHAINFLAG = 0;
+bool __FINISHED = 0;
+
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_SIZE:
-        case WM_EXITSIZEMOVE:
-        PostMessage(hWnd, WM_USER + 1, wParam, lParam);
+            RECT rect;
+            GetClientRect(hWnd, &rect);
+            __WINDOWWIDTH = rect.right - rect.left;
+            __WINDOWHEIGHT = rect.bottom - rect.top;
+            
+            __SWAPCHAINFLAG = true;
+
+
         break;
         case WM_KEYDOWN:
         case WM_CLOSE:
-        PostMessage(hWnd, WM_USER + 2, wParam, lParam);
+            __FINISHED = true;
         break;
         default:
         return DefWindowProc(hWnd, message, wParam, lParam);
@@ -35,29 +46,41 @@ void Window::Show(void) {
 }
 
 
+void Window::Update(void) {
+
+    MSG msg = {};
+
+    if ( PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+        TranslateMessage(&msg);
+        DispatchMessage(&msg);   
+    }
+
+    w = __WINDOWWIDTH;
+    h = __WINDOWHEIGHT;
+    swapchainValid = !__SWAPCHAINFLAG;
+    __SWAPCHAINFLAG = false;
+    finished = __FINISHED;
+    
+
+}
+
 
 bool Window::Create(const char* title) {
     inst = GetModuleHandle(nullptr);
-    WNDCLASSEX wcex;
-    wcex.cbSize = sizeof(WNDCLASSEX);
-    wcex.style = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc = WndProc;
-    wcex.cbClsExtra = 0;
-    wcex.cbWndExtra = 0;
-    wcex.hInstance = inst;
-    wcex.hIcon = NULL;
-    wcex.hCursor = LoadCursor( NULL, IDC_ARROW );
-    wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wcex.lpszMenuName = NULL;
-    wcex.lpszClassName = "Vulkan Renderer";
-    wcex.hIconSm = NULL;
+    WNDCLASS  WindowClass = {};
+    WindowClass.lpfnWndProc = WndProc;
+    WindowClass.hInstance = inst;
+    WindowClass.lpszClassName = "Renderer";
     
-    if( !RegisterClassEx( &wcex ) ) {
+    if( !RegisterClass( &WindowClass ) ) {
         return false;
     }
     
     // Create window
-    handle = CreateWindow( "Vulkan Renderer", title, WS_OVERLAPPEDWINDOW, 20, 20, 500, 500, nullptr, nullptr, inst, nullptr );
+    handle = CreateWindowExA(0, "Renderer", "Renderer Test", WS_OVERLAPPEDWINDOW | WS_VISIBLE, CW_USEDEFAULT,
+            CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0, 0, inst, 0);
+    w = 500;
+    h = 500;
     if( !handle ) {
         return false;
     }
@@ -67,7 +90,8 @@ bool Window::Create(const char* title) {
 }
 
 void Platform::GetRect(int* w, int* h) {
-    window.GetRect(w, h);
+    *w = window.w;
+    *h = window.h;
 }
 
 void Window::GetRect(int* w, int* h) {

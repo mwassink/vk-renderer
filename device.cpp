@@ -297,7 +297,7 @@ void VulkanContext::Device(bool validationLayers) {
 
 /* Create a swapchain, either at init or "on the fly" */
 void VulkanContext::Swapchain(void) {
-    pform.window.renderable = false;
+
     VkSurfaceCapabilitiesKHR sCaps;
     vkDeviceWaitIdle(dev);
     
@@ -446,7 +446,7 @@ void VulkanContext::Swapchain(void) {
         ENSURE_SUCC (vkCreateImageView(dev, &createInfo, nullptr, &images[i].view));
         
     }
-    pform.window.renderable = true;
+    pform.window.swapchainValid = true;
     
     
     

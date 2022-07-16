@@ -32,9 +32,10 @@ int CALLBACK WinMain(HINSTANCE hInstance,
     bool run = true;
     
     vkRenderer.ctx.pform.ShowWindow();
-    for (;run;) {
+    for (;vkRenderer.Runnable();) {
 
         vkRenderer.DrawBasicFlatScene(&scene);
+        vkRenderer.WindowUpdates();
     }
 
 

@@ -179,6 +179,8 @@ struct Renderer {
     void UpdateLightUniform(Light* light, VkCommandBuffer& cb, bool recording);
     void UpdateDescriptors(Vector<BasicModel>& models);
     u32  RoundUp(u32);
+    bool Runnable();
+    void WindowUpdates(void);
     
    
     
