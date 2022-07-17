@@ -427,7 +427,7 @@ VkRenderPass Renderer::BasicRenderPass(VkFormat* format) {
     VkRenderPass rp;
     VkAttachmentDescription attachmentDescrs [] = {{
         0, *format, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,  VK_ATTACHMENT_LOAD_OP_DONT_CARE,            
-        VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL }
+        VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL }
     };
     VkAttachmentReference colorReferences [] = { {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL}};
     VkSubpassDescription subpassDescriptions[] = { {0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, colorReferences, nullptr, nullptr, 0, nullptr}};
@@ -752,7 +752,7 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     u32 imgIndex;
     
     auto res = vkAcquireNextImageKHR(ctx.dev, ctx.sc.handle, UINT64_MAX,
-                                     pfd->presentReady, VK_NULL_HANDLE, &imgIndex);
+                                     pfd->presentOK, VK_NULL_HANDLE, &imgIndex);
 
     switch (res) {
     case VK_SUCCESS:
@@ -806,9 +806,13 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
 
     VkImageSubresourceRange srr = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1,0,1};
     VkImageMemoryBarrier prDrawBarrier = {
-        VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, 0, VK_ACCESS_MEMORY_READ_BIT,
-        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        ctx.gqFamilyIndex, ctx.gqFamilyIndex, img.handle, srr
+        VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+        0,
+        VK_ACCESS_MEMORY_READ_BIT,
+        VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, img.handle, srr
     };
     vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, 0, 0, nullptr, 0, nullptr, 1, &prDrawBarrier);
     
@@ -851,7 +855,7 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
 
     VkImageMemoryBarrier drawPresBarrier = {
               VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT,  
-              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, ctx.gqFamilyIndex, ctx.gqFamilyIndex,
+              VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
               img.handle, srr
     };
     vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &drawPresBarrier );
@@ -862,8 +866,8 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     VkPipelineStageFlags v = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     VkSubmitInfo sInfo = {
       VK_STRUCTURE_TYPE_SUBMIT_INFO, nullptr, 1,
-      &pfd->presentReady, &v,
-      1, &pfd->commandBuffer,1, &pfd->renderingReady
+      &pfd->presentOK, &v,
+      1, &pfd->commandBuffer,1, &pfd->renderingDone
     };
 
     if (vkQueueSubmit(ctx.graphicsPresentQueue, 1, &sInfo, pfd->fence) != VK_SUCCESS) {
@@ -871,7 +875,7 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     }
     VkPresentInfoKHR pInfo = {
       VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, nullptr, 1,
-      &pfd->renderingReady, 1, &ctx.sc.handle,
+      &pfd->renderingDone, 1, &ctx.sc.handle,
       &imgIndex, nullptr
     };
 
@@ -1020,6 +1024,7 @@ void Renderer::WindowUpdates(void) {
     ctx.pform.window.Update();
     if (ctx.pform.window.swapchainValid == false) {
         ctx.Swapchain();
+        ctx.currFrame = 0;
     }
 
 }

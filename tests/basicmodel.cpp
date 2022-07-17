@@ -1,6 +1,8 @@
 #include "../device.h"
 #include "../renderer.h"
 
+#define PI 3.14159
+
 int CALLBACK WinMain(HINSTANCE hInstance,
                      HINSTANCE prevInstance,
                      LPSTR commandLine,
@@ -14,10 +16,13 @@ int CALLBACK WinMain(HINSTANCE hInstance,
     r.normalize();
 
     Matrix3 rm = Matrix3(1, 0, 0, 0, 1, 0, 0, 0, 1);
+#if 0    
     Quaternion q;
     q.SetRotation(rm);
-
     model.rotation = q;
+    
+#endif
+    
     Vector4 pos = Vector4(1, 1, 1, 1);
     Vector4 color = Vector4(1, 1, 1, 1);
     BasicLightData lightData;
@@ -26,6 +31,18 @@ int CALLBACK WinMain(HINSTANCE hInstance,
     lightData.position = pos;
     lightData.power = 10.0f;
     lightData.shininess = 1.0f;
+    CoordinateSpace worldSpace;
+    Matrix4 mvp = ModelViewProjection(worldSpace, worldSpace, PI/4, 16.0f/9.0f,0.5f, 10.0f );
+    Matrix4 mv = ModelView(worldSpace, worldSpace);
+    Matrix3 normalTransform(1, 0, 0, 0, 1, 0, 0, 0, 1);
+    normalTransform = NormalTransform(normalTransform);
+    model.matrices.modelViewProjection = mvp;
+    model.matrices.modelView = mv;
+    model.matrices.normalMatrix = normalTransform;
+    
+    
+    
+    
 
     BasicFlatScene scene = vkRenderer.SimpleScene(&model, 1, &lightData, 1);
 

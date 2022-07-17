@@ -128,9 +128,9 @@ bool VulkanContext::CheckFeatures(VkPhysicalDeviceFeatures& features) {
 
 
 void VulkanContext::Device(bool validationLayers) {
-    Vector<const char*> debugLayers(2);
+    Vector<const char*> debugLayers(1);
     debugLayers[0] = "VK_LAYER_KHRONOS_validation";
-    debugLayers[1] = "VK_LAYER_RENDERDOC_Capture";
+    //debugLayers[1] = "VK_LAYER_RENDERDOC_Capture";
     
     if (validationLayers) {
         CheckDebugLayers();
@@ -253,12 +253,12 @@ void VulkanContext::Device(bool validationLayers) {
         
         
         for (u32 j = 0; j < qFamilies; j++) {
-            vkGetPhysicalDeviceSurfaceSupportKHR(dev, j, surf, &canPresent[i]);
+            vkGetPhysicalDeviceSurfaceSupportKHR(dev, j, surf, &canPresent[j]);
         }
         
         for (u32 j = 0; j < qFamilies; j++) {
             if ((q_family_props[j].queueFlags & VK_QUEUE_GRAPHICS_BIT) != 0) {
-                if (canPresent[i] == VK_TRUE) {
+                if (canPresent[j] == VK_TRUE) {
                     graphicsQueueFamilyIndex = j;
                     gpu = dev;
                 }
@@ -341,8 +341,8 @@ void VulkanContext::Swapchain(void) {
         }
     }
     if (!chosen) {
-        wantedFormat = {VK_FORMAT_R8G8B8A8_UNORM, VK_COLORSPACE_SRGB_NONLINEAR_KHR};
-        if (formats[0].format == VK_FORMAT_UNDEFINED) wantedFormat = formats[0];
+        wantedFormat = formats[0];
+        if (formats[0].format == VK_FORMAT_UNDEFINED) wantedFormat = {VK_FORMAT_R8G8B8A8_UNORM, VK_COLORSPACE_SRGB_NONLINEAR_KHR};
     }
     
     int w, h;
@@ -362,6 +362,7 @@ void VulkanContext::Swapchain(void) {
         if (presentModes[i] == VK_PRESENT_MODE_MAILBOX_KHR) {
             presMode = presentModes[i];
             found = true;
+            break;
         } else if (presentModes[i] == VK_PRESENT_MODE_FIFO_KHR && !found ) {
             presMode = presentModes[i];
             satisfied = true ;
@@ -402,7 +403,7 @@ void VulkanContext::Swapchain(void) {
     ENSURE_SUCC ( vkCreateSwapchainKHR(dev, &scCreateInfo, nullptr, &sc.handle)   );
     
     
-    if (oldHandle == VK_NULL_HANDLE) {
+    if (oldHandle != VK_NULL_HANDLE) {
         // Destroy the old swapchain
         vkDestroySwapchainKHR(dev, oldHandle, nullptr);
     }
@@ -447,6 +448,8 @@ void VulkanContext::Swapchain(void) {
         
     }
     pform.window.swapchainValid = true;
+
+    vkDeviceWaitIdle(dev);
     
     
     
@@ -463,8 +466,8 @@ void VulkanContext::Semaphores(void) {
     };
 
     for (int i = 0; i < NUM_IMAGES; i++ ) {
-        ENSURE_SUCC (vkCreateSemaphore(dev, &semInfo, nullptr, &frameResources[i].renderingReady));
-        ENSURE_SUCC (vkCreateSemaphore(dev, &semInfo, nullptr, &frameResources[i].presentReady));
+        ENSURE_SUCC (vkCreateSemaphore(dev, &semInfo, nullptr, &frameResources[i].renderingDone));
+        ENSURE_SUCC (vkCreateSemaphore(dev, &semInfo, nullptr, &frameResources[i].presentOK));
     }
     
 }

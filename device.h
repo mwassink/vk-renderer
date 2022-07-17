@@ -22,8 +22,8 @@ struct QueueParams {
 struct PerFrameData {
     VkFramebuffer framebuffer = VK_NULL_HANDLE;
     VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
-    VkSemaphore renderingReady = VK_NULL_HANDLE;
-    VkSemaphore presentReady = VK_NULL_HANDLE;
+    VkSemaphore renderingDone = VK_NULL_HANDLE;
+    VkSemaphore presentOK = VK_NULL_HANDLE;
     VkFence fence = VK_NULL_HANDLE;
 };
 
