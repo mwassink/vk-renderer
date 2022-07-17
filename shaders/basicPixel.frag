@@ -35,11 +35,6 @@ void main() {
   float power = lights[lightNum].power;
   float shininess = lights[lightNum].shininess;
 
-
-    
-
-
-
   vec3 l = normalize(lightPos.xyz - pos.xyz);
   vec3 n = normalize(nPos);
   vec3 v = normalize(pos.xyz);
@@ -53,6 +48,7 @@ void main() {
 
   vec3 diffRefl = (ndotl / M_PI * intensity) * texture(tex, uv).xyz;
   vec3 specRefl = spec * intensity * lightColor.xyz;
-  color = vec4(diffRefl + specRefl, 1.0f);
+  //color = vec4(diffRefl + specRefl, 1.0f);
+  color = texture(tex, uv);
 
 }

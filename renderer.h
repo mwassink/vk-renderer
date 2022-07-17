@@ -45,13 +45,13 @@ struct BasicVertexData {
     union {
         struct {
             f32 x; f32 y;  f32 z; f32 w;
-            f32 nx; f32 ny; f32 nz;
             f32 u; f32 v;
+            f32 nx; f32 ny; f32 nz;
         };
         struct {
             Vector4 coord;
-            Vector3 normal;
             Vector2 uv;
+            Vector3 normal;
         };
     };
     BasicVertexData() {}
