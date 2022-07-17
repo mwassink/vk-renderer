@@ -116,5 +116,5 @@ VK_D_FN( vkUpdateDescriptorSets)
 VK_D_FN( vkCmdBindIndexBuffer)
 VK_D_FN(vkCmdDrawIndexed)
 VK_D_FN(vkCmdBindDescriptorSets)
-
+VK_D_FN(vkCmdPushConstants)
 #undef VK_D_FN

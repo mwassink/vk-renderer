@@ -117,6 +117,9 @@ struct Renderer {
     BasicRenderData rData;
     Buffer uniformHostPool;
     Buffer uniformMegaPool;
+    Buffer uniformHostLightPool;
+    Buffer uniformMegaLightPool;
+
     Buffer basicLightBuffer;
     VkDescriptorPool descriptorPool;
     VkDescriptorSetLayout basicLayout;
@@ -137,7 +140,7 @@ struct Renderer {
     VkDescriptorSetLayout BasicDescriptorSetLayout(void);
     VkDescriptorPool BasicDescriptorPool(u32 numDescriptors);
     VkDescriptorSet BasicDescriptorSetAllocation(VkDescriptorPool* pool, VkDescriptorSetLayout* layout );
-    void WriteBasicDescriptorSet(VkDescriptorSet& descriptorSet, BasicModel* model);
+    void WriteBasicDescriptorSet(VkDescriptorSet& descriptorSet, BasicModel* model, u32 lights);
     
     void BasicPipelineLayout(BasicRenderData* renderData);
     VkRenderPass BasicRenderPass(VkFormat* swapChainFormat);
@@ -176,8 +179,8 @@ struct Renderer {
 
     void SetupUniforms(BasicFlatScene* scene);
     void CopyUniformPool(VkCommandBuffer& cb);
-    void UpdateLightUniform(Light* light, VkCommandBuffer& cb, bool recording);
-    void UpdateDescriptors(Vector<BasicModel>& models);
+
+    void UpdateDescriptors(Vector<BasicModel>& models, u32 lights);
     u32  RoundUp(u32);
     bool Runnable();
     void WindowUpdates(void);

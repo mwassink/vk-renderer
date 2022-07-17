@@ -394,7 +394,7 @@ VkDescriptorSet Renderer::BasicDescriptorSetAllocation(VkDescriptorPool* pool, V
 }
 
 // (NOTE) This is where we put all of the data into the pipeline
-void Renderer::WriteBasicDescriptorSet(VkDescriptorSet& descriptorSet, BasicModel* model) {
+void Renderer::WriteBasicDescriptorSet(VkDescriptorSet& descriptorSet, BasicModel* model, u32 numLights) {
     VkDescriptorImageInfo imgInfo = {
         model->modelTexture.sampler, model->modelTexture.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     };
@@ -402,7 +402,7 @@ void Renderer::WriteBasicDescriptorSet(VkDescriptorSet& descriptorSet, BasicMode
         uniformMegaPool.handle, model->matrixBufferOffset, sizeof(BasicMatrices)
     };
     VkDescriptorBufferInfo lightUniforms = {
-        basicLightBuffer.handle, 0, sizeof(BasicLightData)
+        uniformMegaLightPool.handle, 0, sizeof(BasicLightData) * numLights
     };
     VkWriteDescriptorSet writes[3];
 
@@ -447,6 +447,16 @@ void Renderer::BasicPipelineLayout(BasicRenderData* renderData) {
     VkPipelineLayoutCreateInfo layoutCreateInfo = {
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, nullptr, 0, 1, &renderData->dsLayout, 0, nullptr
     };
+
+    VkPushConstantRange pushConstant;
+    pushConstant.offset = 0;
+    pushConstant.size = sizeof(u32);
+    pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+
+
+    layoutCreateInfo.pPushConstantRanges = &pushConstant;
+    layoutCreateInfo.pushConstantRangeCount = 1;
     if (vkCreatePipelineLayout(ctx.dev, &layoutCreateInfo, nullptr, &plLayout) != VK_SUCCESS) {
         ctx.pform.FatalError("Unable to create a basic pipeline layout", "Vulkan Runtime Error");
     }
@@ -774,8 +784,7 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     RefreshFramebuffer(&rData, &img.view, &pfd->framebuffer );
 
     // write the descriptors with the first light
-    Light dummyLight = {0};
-    UpdateLightUniform(&dummyLight, cb, false);
+
     VkCommandBufferBeginInfo cbInfo = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, 0,
         VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, 0
     };
@@ -788,7 +797,7 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
             }   
         }
         SetupUniforms(scene);
-        UpdateDescriptors(models);
+        UpdateDescriptors(models, lights.sz);
 
     }
 
@@ -824,15 +833,11 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
         VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO, 0, rData.rPass,
         pfd->framebuffer, rect, 1, &clearVal
     };
-
-    
-
-    
-    for (int i = 0; i < lights.sz; i++ ) {
+    vkCmdBeginRenderPass(cb, &rpBeginInfo, VK_SUBPASS_CONTENTS_INLINE );
+    for (u32 i = 0; i < lights.sz; i++ ) {
         auto light = lights[i];
 
-        UpdateLightUniform(&light, cb, true);
-        vkCmdBeginRenderPass(cb, &rpBeginInfo, VK_SUBPASS_CONTENTS_INLINE );
+
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS,  rData.pipeline);
         VkViewport viewport = { 0, 0, static_cast<float>(ctx.ext.width),static_cast<float>(ctx.ext.height), 0, 1 };
         VkRect2D scissor = { {0, 0}, {static_cast<u32>(ctx.ext.width), static_cast<u32>(ctx.ext.height)}};
@@ -841,18 +846,20 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
         vkCmdSetViewport( cb, 0, 1, &viewport );
         vkCmdSetScissor( cb, 0, 1, &scissor );
 
-        for (int j = 0; j < models.sz; j++) {
+        for (u32 j = 0; j < models.sz; j++) {
 
             BasicModel& model = models[j];
             
             vkCmdBindVertexBuffers(cb, 0, 1, &model.vertexBuffer.handle, &offset);
             vkCmdBindIndexBuffer(cb, model.indexBuffer.handle, offset, VK_INDEX_TYPE_UINT32);
             vkCmdBindDescriptorSets(cb ,VK_PIPELINE_BIND_POINT_GRAPHICS, rData.plLayout, 0, 1, &model.descriptorSet, 0, 0);
+            
+            vkCmdPushConstants(cb, rData.plLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, 4, &i);
             vkCmdDrawIndexed(cb, model.numPrimitives, 1, 0, 0, 0);
         }
-        vkCmdEndRenderPass(cb);
-    }    
 
+    }    
+    vkCmdEndRenderPass(cb);
     VkImageMemoryBarrier drawPresBarrier = {
               VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, nullptr, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT,  
               VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
@@ -936,23 +943,15 @@ void Renderer::SetupUniforms(BasicFlatScene * scene ) {
     ctx.pform.FatalError("Unable to map memory for staging buffer", "VK Runtime Error");
     
   }
+
+
   u32 spaceCounter = 0;
   char* copyTarget = (char*) loc;
+  memcpy(copyTarget, &scene->models[0].matrices, sizeof(BasicMatrices) * scene->models.sz);
   for (int i = 0; i < scene->models.sz; i++) {
-    scene->models[i].matrixBufferOffset = spaceCounter;
-    memcpy(copyTarget, &scene->models[i].matrices, sizeof(BasicMatrices));
-    copyTarget += sizeof(BasicMatrices);
-    spaceCounter += sizeof(BasicMatrices);
+    scene->models[i].matrixBufferOffset = sizeof(BasicMatrices) * i;
   }
-#if 0
-  
-  for (int i = 0; i < scene->lights.sz; i++) {
-    scene->lights[i].lightBufferOffset = spaceCounter;
-    memcpy(copyTarget, &scene->lights[i].lightData, sizeof(BasicLightData));
-    copyTarget += sizeof(BasicLightData);
-    spaceCounter += sizeof(BasicLightData);
-  }
-#endif
+
   VkMappedMemoryRange flush = {
     VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE, nullptr,
         uniformHostPool.memory, 0, RoundUp(neededSpace)
@@ -964,6 +963,31 @@ void Renderer::SetupUniforms(BasicFlatScene * scene ) {
   uniformMegaPool = MakeBuffer(neededSpace, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
+
+  u32 neededSpaceLights = RoundUp(sizeof(BasicLightData) * scene->lights.sz);
+  uniformHostLightPool = MakeBuffer(neededSpaceLights, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+  
+  if (vkMapMemory(ctx.dev, uniformHostLightPool.memory, 0, RoundUp(neededSpaceLights), 0, &loc) != VK_SUCCESS) {
+      ctx.pform.FatalError("Unable to map memory for staging buffer", "VK Runtime Error");
+  }
+  
+  spaceCounter = 0;
+  copyTarget = (char*) loc;
+  memcpy(copyTarget, scene->lights.data, sizeof(BasicLightData) * scene->lights.sz);
+  for (int i = 0; i < scene->models.sz; i++) {
+    scene->models[i].matrixBufferOffset = sizeof(BasicMatrices) * i;
+  }
+
+  flush = {
+    VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE, nullptr,
+        uniformHostLightPool.memory, 0, RoundUp(neededSpaceLights)
+  };
+  
+  vkFlushMappedMemoryRanges(ctx.dev, 1,&flush );
+  vkUnmapMemory(ctx.dev, uniformHostLightPool.memory);
+
+  uniformMegaLightPool = MakeBuffer(RoundUp(neededSpaceLights), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  
   uniformPoolNeedsCopy = true;
      
 }
@@ -973,6 +997,8 @@ void Renderer::CopyUniformPool(VkCommandBuffer& cb) {
 
     VkBufferCopy buffCopyInfo = {0, 0, uniformMegaPool.size };
     vkCmdCopyBuffer(cb, uniformHostPool.handle, uniformMegaPool.handle, 1, &buffCopyInfo);
+    VkBufferCopy lightBuffCopyInfo = {0, 0, uniformMegaLightPool.size};
+    vkCmdCopyBuffer(cb, uniformHostLightPool.handle, uniformMegaLightPool.handle, 1, &lightBuffCopyInfo);
     VkBufferMemoryBarrier rwBarrier {
         VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT, VK_QUEUE_FAMILY_IGNORED,
         VK_QUEUE_FAMILY_IGNORED, uniformMegaPool.handle, 0, VK_WHOLE_SIZE
@@ -983,29 +1009,11 @@ void Renderer::CopyUniformPool(VkCommandBuffer& cb) {
 }
 
 
-void Renderer::UpdateLightUniform(Light* light, VkCommandBuffer& cb, bool recording = true) {
-
-    Buffer tmpBuffer = StagingBuffer(RoundUp(sizeof(BasicLightData)), light);
-    if (!lbOK) {
-        basicLightBuffer = MakeBuffer(RoundUp(sizeof(BasicLightData)), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT );        
-        lbOK = true;
-    }
-    if (!recording) return;
-    VkBufferCopy buffCopyInfo = {0, 0, RoundUp(sizeof(BasicLightData)) };
-    vkCmdCopyBuffer(cb, tmpBuffer.handle, basicLightBuffer.handle, 1, &buffCopyInfo);
-    VkBufferMemoryBarrier rwBarrier {
-        VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT, VK_QUEUE_FAMILY_IGNORED,
-        VK_QUEUE_FAMILY_IGNORED, uniformMegaPool.handle, 0, VK_WHOLE_SIZE
-    };
-    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, nullptr, 1, &rwBarrier, 0, nullptr);
-}
-
-
     
-void Renderer::UpdateDescriptors(Vector<BasicModel>&  models) {
+void Renderer::UpdateDescriptors(Vector<BasicModel>&  models, u32 numLights) {
     
     for (int i = 0; i < models.sz; i++) {
-        WriteBasicDescriptorSet(models[i].descriptorSet, &models[i]);
+        WriteBasicDescriptorSet(models[i].descriptorSet, &models[i], numLights);
     }
 }
 
