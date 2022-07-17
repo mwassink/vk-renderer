@@ -32,8 +32,10 @@ int CALLBACK WinMain(HINSTANCE hInstance,
     lightData.power = 10.0f;
     lightData.shininess = 1.0f;
     CoordinateSpace worldSpace;
-    Matrix4 mvp = ModelViewProjection(worldSpace, worldSpace, PI/4, 16.0f/9.0f,0.5f, 10.0f );
-    Matrix4 mv = ModelView(worldSpace, worldSpace);
+    CoordinateSpace oSpace;
+    oSpace.origin = Vector3(0, 0, -5);
+    Matrix4 mvp = ModelViewProjection(oSpace, worldSpace, PI/4, 16.0f/9.0f,0.5f, 10.0f );
+    Matrix4 mv = ModelView(oSpace, worldSpace);
     Matrix3 normalTransform(1, 0, 0, 0, 1, 0, 0, 0, 1);
     normalTransform = NormalTransform(normalTransform);
     model.matrices.modelViewProjection = mvp;
