@@ -1,6 +1,6 @@
 #include "../device.h"
 #include "../renderer.h"
-#include <stdio.h>
+
 #define PI 3.14159
 
 int CALLBACK WinMain(HINSTANCE hInstance,
@@ -12,11 +12,7 @@ int CALLBACK WinMain(HINSTANCE hInstance,
     vkRenderer.InitBasicRender(10000);
     BasicModelFiles files = {"tests/barrel/barrel.obj", "tests/barrel/img.png"};
     auto model = vkRenderer.AddBasicModel(files);
-    char arr[1000];
-    for (int i = 0; i < model.vData.sz; i++) {
-        sprintf(arr, "(%f, %f)\n", model.vData[i].u, model.vData[i].v);
-        OutputDebugStringA(arr);
-    }
+    
     Vector3 r = Vector3(1,1,1);
     r.normalize();
 
