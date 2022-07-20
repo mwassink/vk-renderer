@@ -17,3 +17,10 @@ tests/barrel*
 include/
 tests/
 build/
+x64/
+Debug/
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user

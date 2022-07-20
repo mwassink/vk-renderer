@@ -2,7 +2,7 @@
 
 
 
-#include "renderer.h"
+#include "basicrenderer.h"
 
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -18,7 +18,7 @@ Buffer::Buffer(){
 }
 
 
-Buffer Renderer::MakeBuffer(u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits wantedProperty) {
+Buffer BasicRenderer::MakeBuffer(u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits wantedProperty) {
 #define FLUSHMULTIPLE 0x40
 
     assert(sizeIn % FLUSHMULTIPLE == 0 );
@@ -64,7 +64,7 @@ Buffer Renderer::MakeBuffer(u32 sizeIn, u32 flagsIn,  VkMemoryPropertyFlagBits w
     return buff;
 }
 
-void Renderer::MoveBufferGeneric(Buffer& stagingBuffer, Buffer& targetBuffer ) {
+void BasicRenderer::MoveBufferGeneric(Buffer& stagingBuffer, Buffer& targetBuffer ) {
     auto cmdBuffer = ctx.frameResources[0].commandBuffer;
     VkCommandBufferBeginInfo bInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, 0, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT, 0};
     vkBeginCommandBuffer(cmdBuffer, &bInfo);
@@ -78,7 +78,7 @@ void Renderer::MoveBufferGeneric(Buffer& stagingBuffer, Buffer& targetBuffer ) {
     vkDeviceWaitIdle(ctx.dev);
     
 }
-void Renderer::MoveUniformFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuffer) {
+void BasicRenderer::MoveUniformFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuffer) {
     auto cmdBuffer = ctx.frameResources[0].commandBuffer;
     
     VkCommandBufferBeginInfo beginInfo = {
@@ -107,7 +107,7 @@ void Renderer::MoveUniformFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuf
     vkDeviceWaitIdle(ctx.dev);
 }
 
-Buffer Renderer::StagingBuffer(u32 sz, void* data) {
+Buffer BasicRenderer::StagingBuffer(u32 sz, void* data) {
     assert(sz % FLUSHMULTIPLE == 0 );
     if (sz < stagingBuffer.size) {
         toGPU(data, stagingBuffer.memory, sz);
@@ -120,7 +120,7 @@ Buffer Renderer::StagingBuffer(u32 sz, void* data) {
     return stagingBuffer;
 }
 
-Buffer Renderer::VertexBuffer( u32 sz, void* data) {
+Buffer BasicRenderer::VertexBuffer( u32 sz, void* data) {
     assert(sz % FLUSHMULTIPLE == 0 );
     Buffer vBuffer = MakeBuffer(RoundUp(sz), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     Buffer stagingBuffer = StagingBuffer(RoundUp(sz), data);
@@ -128,7 +128,7 @@ Buffer Renderer::VertexBuffer( u32 sz, void* data) {
     return vBuffer;
 }
 
-Buffer Renderer::IndexBuffer(u32 sz, void* data) {
+Buffer BasicRenderer::IndexBuffer(u32 sz, void* data) {
     assert(sz % FLUSHMULTIPLE == 0 );
     Buffer iBuffer= MakeBuffer(RoundUp(sz), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     Buffer sBuffer=  StagingBuffer(RoundUp(sz), data);
@@ -137,7 +137,7 @@ Buffer Renderer::IndexBuffer(u32 sz, void* data) {
     
 }
 
-void Renderer::MoveVertexBufferFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuffer) {
+void BasicRenderer::MoveVertexBufferFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuffer) {
     auto cmdBuffer = ctx.frameResources[0].commandBuffer;
     
     VkCommandBufferBeginInfo beginInfo = {
@@ -167,7 +167,7 @@ void Renderer::MoveVertexBufferFromDMARegion(Buffer &stagingBuffer, Buffer &targ
 
 }
 
-void Renderer::toGPU(void* data, VkDeviceMemory mem, u32 sz ) {
+void BasicRenderer::toGPU(void* data, VkDeviceMemory mem, u32 sz ) {
     
     assert(sz % FLUSHMULTIPLE == 0 );
 
@@ -188,7 +188,7 @@ void Renderer::toGPU(void* data, VkDeviceMemory mem, u32 sz ) {
     
 }
 
-Texture Renderer::RGBATexture(const char* fileName) {
+Texture BasicRenderer::RGBATexture(const char* fileName) {
     Texture tex;
     FileData data = ctx.pform.ReadBinaryFile(fileName);
     int w, h, comps;
@@ -236,7 +236,7 @@ Texture Renderer::RGBATexture(const char* fileName) {
 }
 
 
-void Renderer::AllocMemoryImage(u32 sz, VkImage handle, VkMemoryPropertyFlagBits wantedProperty, VkDeviceMemory* mem) {
+void BasicRenderer::AllocMemoryImage(u32 sz, VkImage handle, VkMemoryPropertyFlagBits wantedProperty, VkDeviceMemory* mem) {
     VkMemoryRequirements iReqs;
     VkPhysicalDeviceMemoryProperties  physProps;
     vkGetImageMemoryRequirements(ctx.dev, handle, &iReqs);
@@ -259,7 +259,7 @@ void Renderer::AllocMemoryImage(u32 sz, VkImage handle, VkMemoryPropertyFlagBits
     ctx.pform.FatalError("Error while allocating image memory", "Vulkan Runtime Error");
 }
 
-void Renderer::FillTexture(void* data, Texture* tex) {
+void BasicRenderer::FillTexture(void* data, Texture* tex) {
     u32 sz = RoundUp(tex->comps * tex->w * tex->h);
     AllocMemoryImage(sz, tex->imageHandle, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &tex->mem);
     if ( vkBindImageMemory(ctx.dev, tex->imageHandle, tex->mem, 0) != VK_SUCCESS) {
@@ -346,7 +346,7 @@ void Renderer::FillTexture(void* data, Texture* tex) {
     vkDeviceWaitIdle(ctx.dev);
 }
 
-VkDescriptorSetLayout Renderer::BasicDescriptorSetLayout() {
+VkDescriptorSetLayout BasicRenderer::BasicDescriptorSetLayout() {
     VkDescriptorSetLayout basicLayout;
 
     Vector<VkDescriptorSetLayoutBinding> bindings(3);
@@ -365,7 +365,7 @@ VkDescriptorSetLayout Renderer::BasicDescriptorSetLayout() {
 
 }
 
-VkDescriptorPool Renderer::BasicDescriptorPool(u32 nDescriptors) {
+VkDescriptorPool BasicRenderer::BasicDescriptorPool(u32 nDescriptors) {
     VkDescriptorPool pool;
     Vector<VkDescriptorPoolSize> szes(3);
     szes[0] = {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors};
@@ -380,7 +380,7 @@ VkDescriptorPool Renderer::BasicDescriptorPool(u32 nDescriptors) {
 
 }
 
-VkDescriptorSet Renderer::BasicDescriptorSetAllocation(VkDescriptorPool* pool, VkDescriptorSetLayout* layout ) {
+VkDescriptorSet BasicRenderer::BasicDescriptorSetAllocation(VkDescriptorPool* pool, VkDescriptorSetLayout* layout ) {
 
     VkDescriptorSet descriptorSet;
     VkDescriptorSetAllocateInfo allocInfo = {
@@ -394,15 +394,15 @@ VkDescriptorSet Renderer::BasicDescriptorSetAllocation(VkDescriptorPool* pool, V
 }
 
 // (NOTE) This is where we put all of the data into the pipeline
-void Renderer::WriteBasicDescriptorSet(VkDescriptorSet& descriptorSet, BasicModel* model, u32 numLights) {
+void BasicRenderer::WriteBasicDescriptorSet(VkDescriptorSet& descriptorSet, BasicModel* model, u32 numLights) {
     VkDescriptorImageInfo imgInfo = {
         model->modelTexture.sampler, model->modelTexture.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
     };
     VkDescriptorBufferInfo matrixUniforms = {
-        uniformMegaPool.handle, model->matrixBufferOffset, sizeof(BasicMatrices)
+        uniformBasicMegaPool.handle, model->matrixBufferOffset, sizeof(BasicMatrices)
     };
     VkDescriptorBufferInfo lightUniforms = {
-        uniformMegaLightPool.handle, 0, sizeof(BasicLightData) * numLights
+        uniformBasicMegaLightPool.handle, 0, sizeof(BasicLightData) * numLights
     };
     VkWriteDescriptorSet writes[3];
 
@@ -423,7 +423,7 @@ void Renderer::WriteBasicDescriptorSet(VkDescriptorSet& descriptorSet, BasicMode
 
 }
 
-VkRenderPass Renderer::BasicRenderPass(VkFormat* format) {
+VkRenderPass BasicRenderer::BasicRenderPass(VkFormat* format) {
     VkRenderPass rp;
     VkAttachmentDescription attachmentDescrs [] = {{
         0, *format, VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,  VK_ATTACHMENT_LOAD_OP_DONT_CARE,            
@@ -442,7 +442,7 @@ VkRenderPass Renderer::BasicRenderPass(VkFormat* format) {
 }
 
 
-void Renderer::BasicPipelineLayout(BasicRenderData* renderData) {
+void BasicRenderer::BasicPipelineLayout(BasicRenderData* renderData) {
     VkPipelineLayout plLayout;    
     VkPipelineLayoutCreateInfo layoutCreateInfo = {
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, nullptr, 0, 1, &renderData->dsLayout, 0, nullptr
@@ -464,7 +464,7 @@ void Renderer::BasicPipelineLayout(BasicRenderData* renderData) {
 }
 
 
-VkShaderModule Renderer::ShaderModule(const char* spirvFileName) {
+VkShaderModule BasicRenderer::ShaderModule(const char* spirvFileName) {
     VkShaderModule mod;
     char errBuff[1000] = {0};
     FileData data = ctx.pform.ReadBinaryFile(spirvFileName);
@@ -477,7 +477,7 @@ VkShaderModule Renderer::ShaderModule(const char* spirvFileName) {
 }
 
 
-void Renderer::BasicPipeline(BasicRenderData* renderData) {
+void BasicRenderer::BasicPipeline(BasicRenderData* renderData) {
     VkPipeline pl;
 
     auto vMod = ShaderModule("shaders/basicVertex.spv");
@@ -538,7 +538,7 @@ void Renderer::BasicPipeline(BasicRenderData* renderData) {
     renderData->pipeline = pl;
 }
 
-void Renderer::RefreshFramebuffer(BasicRenderData* rData, VkImageView* imgView, VkFramebuffer* currFB) {
+void BasicRenderer::RefreshFramebuffer(BasicRenderData* rData, VkImageView* imgView, VkFramebuffer* currFB) {
     if (*currFB != VK_NULL_HANDLE) {
         vkDestroyFramebuffer(ctx.dev, *currFB, nullptr);
         *currFB = VK_NULL_HANDLE;
@@ -559,7 +559,7 @@ void Renderer::RefreshFramebuffer(BasicRenderData* rData, VkImageView* imgView, 
 // Initialize the data before calling this
 
 // Make the pipeline, render passes, etc
-void Renderer::InitBasicRender(u32 numDescriptors) {
+void BasicRenderer::InitBasicRender(u32 numDescriptors) {
     
     rData.dsLayout = BasicDescriptorSetLayout();
     basicLayout = rData.dsLayout;
@@ -567,7 +567,7 @@ void Renderer::InitBasicRender(u32 numDescriptors) {
     auto rp = BasicRenderPass(&ctx.sc.format.format);
     rData.rPass = rp;
     auto pool = BasicDescriptorPool(numDescriptors);
-    descriptorPool = pool;
+    basicDescriptorPool = pool;
     auto set = BasicDescriptorSetAllocation(&pool, &rData.dsLayout);
     rData.descriptorSet = set;
     BasicPipeline(&rData);
@@ -576,17 +576,17 @@ void Renderer::InitBasicRender(u32 numDescriptors) {
 
 // Make a vertex buffer, get textures, etc
 // The model is supposed to have all vertex data already in the struct, except for the file
-BasicModel Renderer::AddBasicModel(BasicModelFiles fileNames) {
+BasicModel BasicRenderer::AddBasicModel(BasicModelFiles fileNames) {
     
     BasicModel model = LoadModelObj(fileNames.objFile, fileNames.rgbaName);
     model.vertexBuffer = VertexBuffer(RoundUp(model.vData.sz* sizeof (BasicVertexData)), model.vData.data);
     model.indexBuffer = IndexBuffer(RoundUp(model.indices.sz* sizeof(u32)), model.indices.data);
-    model.descriptorSet = BasicDescriptorSetAllocation(&descriptorPool, &basicLayout);
+    model.descriptorSet = BasicDescriptorSetAllocation(&basicDescriptorPool, &basicLayout);
 
     return model;
 }
 
-Light Renderer::AddLight(Vector4 pos, Vector4 color, f32 power) {
+Light BasicRenderer::AddLight(Vector4 pos, Vector4 color, f32 power) {
     Light l;
     BasicLightData& ld = l.lightData;
     ld.lightColor = color;
@@ -598,7 +598,7 @@ Light Renderer::AddLight(Vector4 pos, Vector4 color, f32 power) {
 }
 
 
-Light Renderer::AddLight(const BasicLightData* lightData) {
+Light BasicRenderer::AddLight(const BasicLightData* lightData) {
     Light l;
     l.lightData = *lightData;
     return l;
@@ -606,7 +606,7 @@ Light Renderer::AddLight(const BasicLightData* lightData) {
 
 
 
-BasicModel Renderer::LoadModelObj(const char* f, const char* imageFile) {
+BasicModel BasicRenderer::LoadModelObj(const char* f, const char* imageFile) {
     BasicModel model;
 
     Vector2 dummyUV;
@@ -682,7 +682,7 @@ BasicModel Renderer::LoadModelObj(const char* f, const char* imageFile) {
 }
 
 
-u32 Renderer::CountTrianglesOccurences(const char* f) {
+u32 BasicRenderer::CountTrianglesOccurences(const char* f) {
     int sz, ctr = 0;
     auto data = pform->ReadBinaryFile(f);
     
@@ -694,7 +694,7 @@ u32 Renderer::CountTrianglesOccurences(const char* f) {
     return ctr;   
 }
 
-BasicVertexData Renderer::ConstructVertex(Vector<Vector3>* coords, Vector<Vector3>* normals, Vector<Vector2>* uvcoords, u32 p, u32 t, u32 n  ) {
+BasicVertexData BasicRenderer::ConstructVertex(Vector<Vector3>* coords, Vector<Vector3>* normals, Vector<Vector2>* uvcoords, u32 p, u32 t, u32 n  ) {
     BasicVertexData v;
     v.coord = Vector4((*coords)[p], 1.0f);
     if (n != MAXU32)
@@ -710,7 +710,7 @@ BasicVertexData Renderer::ConstructVertex(Vector<Vector3>* coords, Vector<Vector
 }
 
 
-void Renderer::ParseVertex(const char* s, HashTable* indexHashTable, Vector<u32>* indices, Vector<Vector3>* coords, Vector<Vector3>* normals, Vector<Vector2>* uvcoords,
+void BasicRenderer::ParseVertex(const char* s, HashTable* indexHashTable, Vector<u32>* indices, Vector<Vector3>* coords, Vector<Vector3>* normals, Vector<Vector2>* uvcoords,
                  Vector<BasicVertexData>* vertices) {
     unsigned int p, t, n, occurences;
     occurences = CountOccurrences(s, '/', 0);
@@ -739,14 +739,14 @@ void Renderer::ParseVertex(const char* s, HashTable* indexHashTable, Vector<u32>
     indices->push(val);  
 }
 
-void Renderer::Init(void){
+void BasicRenderer::Init(void){
     fenceSet[0] = false; fenceSet[1] = false; fenceSet[2] = false;
     ctx.Init();
 
     
 }
 
-void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
+void BasicRenderer::DrawBasicFlatScene(BasicFlatScene* scene) {
 
     Vector<BasicModel>& models = scene->models;
     Vector<Light>& lights = scene->lights;
@@ -905,7 +905,7 @@ void Renderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     ctx.currFrame = (ctx.currFrame + 1) % NUM_IMAGES;
 }
 
-BasicFlatScene Renderer::SimpleScene(BasicModel* modelsIn, u32 numModels, BasicLightData* lightsIn, u32 numLights) {
+BasicFlatScene BasicRenderer::SimpleScene(BasicModel* modelsIn, u32 numModels, BasicLightData* lightsIn, u32 numLights) {
     BasicFlatScene s;
 
     Vector<BasicModel> models(numModels);
@@ -924,7 +924,7 @@ BasicFlatScene Renderer::SimpleScene(BasicModel* modelsIn, u32 numModels, BasicL
     return s;
 }
 
-void Renderer::SetupUniforms(BasicFlatScene * scene ) {
+void BasicRenderer::SetupUniforms(BasicFlatScene * scene ) {
   // 7/4/2022
   //Make a staging buffer for all of these
   // Move the stuff from the staging buffer and assign each of these
@@ -932,14 +932,14 @@ void Renderer::SetupUniforms(BasicFlatScene * scene ) {
 
   u32 neededSpace = RoundUp(sizeof(BasicMatrices) * scene->models.sz);
 
-  uniformHostPool = MakeBuffer(neededSpace, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+  uniformBasicHostPool = MakeBuffer(neededSpace, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
   
   
   
   void* loc;
-  if (vkMapMemory(ctx.dev, uniformHostPool.memory, 0, RoundUp(neededSpace), 0, &loc) != VK_SUCCESS) {
+  if (vkMapMemory(ctx.dev, uniformBasicHostPool.memory, 0, RoundUp(neededSpace), 0, &loc) != VK_SUCCESS) {
     ctx.pform.FatalError("Unable to map memory for staging buffer", "VK Runtime Error");
     
   }
@@ -954,20 +954,20 @@ void Renderer::SetupUniforms(BasicFlatScene * scene ) {
 
   VkMappedMemoryRange flush = {
     VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE, nullptr,
-        uniformHostPool.memory, 0, RoundUp(neededSpace)
+        uniformBasicHostPool.memory, 0, RoundUp(neededSpace)
   };
   
   vkFlushMappedMemoryRanges(ctx.dev, 1,&flush );
-  vkUnmapMemory(ctx.dev, uniformHostPool.memory);
+  vkUnmapMemory(ctx.dev, uniformBasicHostPool.memory);
 
-  uniformMegaPool = MakeBuffer(neededSpace, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+  uniformBasicMegaPool = MakeBuffer(neededSpace, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 
   u32 neededSpaceLights = RoundUp(sizeof(BasicLightData) * scene->lights.sz);
-  uniformHostLightPool = MakeBuffer(neededSpaceLights, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+  uniformBasicHostLightPool = MakeBuffer(neededSpaceLights, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
   
-  if (vkMapMemory(ctx.dev, uniformHostLightPool.memory, 0, RoundUp(neededSpaceLights), 0, &loc) != VK_SUCCESS) {
+  if (vkMapMemory(ctx.dev, uniformBasicHostLightPool.memory, 0, RoundUp(neededSpaceLights), 0, &loc) != VK_SUCCESS) {
       ctx.pform.FatalError("Unable to map memory for staging buffer", "VK Runtime Error");
   }
   
@@ -980,28 +980,28 @@ void Renderer::SetupUniforms(BasicFlatScene * scene ) {
 
   flush = {
     VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE, nullptr,
-        uniformHostLightPool.memory, 0, RoundUp(neededSpaceLights)
+        uniformBasicHostLightPool.memory, 0, RoundUp(neededSpaceLights)
   };
   
   vkFlushMappedMemoryRanges(ctx.dev, 1,&flush );
-  vkUnmapMemory(ctx.dev, uniformHostLightPool.memory);
+  vkUnmapMemory(ctx.dev, uniformBasicHostLightPool.memory);
 
-  uniformMegaLightPool = MakeBuffer(RoundUp(neededSpaceLights), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+  uniformBasicMegaLightPool = MakeBuffer(RoundUp(neededSpaceLights), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
   
   uniformPoolNeedsCopy = true;
      
 }
 
 // 07/04/2022 REQUIRES command buffers to be in the recording state
-void Renderer::CopyUniformPool(VkCommandBuffer& cb) {
+void BasicRenderer::CopyUniformPool(VkCommandBuffer& cb) {
 
-    VkBufferCopy buffCopyInfo = {0, 0, uniformMegaPool.size };
-    vkCmdCopyBuffer(cb, uniformHostPool.handle, uniformMegaPool.handle, 1, &buffCopyInfo);
-    VkBufferCopy lightBuffCopyInfo = {0, 0, uniformMegaLightPool.size};
-    vkCmdCopyBuffer(cb, uniformHostLightPool.handle, uniformMegaLightPool.handle, 1, &lightBuffCopyInfo);
+    VkBufferCopy buffCopyInfo = {0, 0, uniformBasicMegaPool.size };
+    vkCmdCopyBuffer(cb, uniformBasicHostPool.handle, uniformBasicMegaPool.handle, 1, &buffCopyInfo);
+    VkBufferCopy lightBuffCopyInfo = {0, 0, uniformBasicMegaLightPool.size};
+    vkCmdCopyBuffer(cb, uniformBasicHostLightPool.handle, uniformBasicMegaLightPool.handle, 1, &lightBuffCopyInfo);
     VkBufferMemoryBarrier rwBarrier {
         VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, nullptr, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_UNIFORM_READ_BIT, VK_QUEUE_FAMILY_IGNORED,
-        VK_QUEUE_FAMILY_IGNORED, uniformMegaPool.handle, 0, VK_WHOLE_SIZE
+        VK_QUEUE_FAMILY_IGNORED, uniformBasicMegaPool.handle, 0, VK_WHOLE_SIZE
     };
     vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, 0, 0, nullptr, 1, &rwBarrier, 0, nullptr);
     
@@ -1010,25 +1010,25 @@ void Renderer::CopyUniformPool(VkCommandBuffer& cb) {
 
 
     
-void Renderer::UpdateDescriptors(Vector<BasicModel>&  models, u32 numLights) {
+void BasicRenderer::UpdateDescriptors(Vector<BasicModel>&  models, u32 numLights) {
     
     for (int i = 0; i < models.sz; i++) {
         WriteBasicDescriptorSet(models[i].descriptorSet, &models[i], numLights);
     }
 }
 
-u32 Renderer::RoundUp(u32 sz) {
+u32 BasicRenderer::RoundUp(u32 sz) {
 
     if (sz % FLUSHMULTIPLE == 0) return sz;
     u32 rem = sz % FLUSHMULTIPLE;
     return sz - rem + FLUSHMULTIPLE;
 }
 
-bool Renderer::Runnable(void) {
+bool BasicRenderer::Runnable(void) {
     return !ctx.pform.window.finished;
 }
 
-void Renderer::WindowUpdates(void) {
+void BasicRenderer::WindowUpdates(void) {
     ctx.pform.window.Update();
     if (ctx.pform.window.swapchainValid == false) {
         ctx.Swapchain();

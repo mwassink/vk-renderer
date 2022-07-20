@@ -1,5 +1,5 @@
 #include "../device.h"
-#include "../renderer.h"
+#include "../basicrenderer.h"
 
 #define PI 3.14159
 
@@ -7,7 +7,7 @@ int CALLBACK WinMain(HINSTANCE hInstance,
                      HINSTANCE prevInstance,
                      LPSTR commandLine,
                      int showCode){
-    Renderer vkRenderer;
+    BasicRenderer vkRenderer;
     vkRenderer.Init();
     vkRenderer.InitBasicRender(10000);
     BasicModelFiles files = {"tests/barrel/barrel.obj", "tests/barrel/img.png"};

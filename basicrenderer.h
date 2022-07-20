@@ -77,7 +77,7 @@ struct BasicModel {
     Buffer indexBuffer;
 
     Texture modelTexture;
-  VkDescriptorSet descriptorSet;  
+    VkDescriptorSet descriptorSet;  
     Quaternion rotation;
     f32 scale;
     u32 numPrimitives;
@@ -110,18 +110,18 @@ struct BasicFlatScene {
 };
 
 
-struct Renderer {
+struct BasicRenderer {
     
     VulkanContext ctx;
     Buffer stagingBuffer;
     BasicRenderData rData;
-    Buffer uniformHostPool;
-    Buffer uniformMegaPool;
-    Buffer uniformHostLightPool;
-    Buffer uniformMegaLightPool;
+    Buffer uniformBasicHostPool;
+    Buffer uniformBasicMegaPool;
+    Buffer uniformBasicHostLightPool;
+    Buffer uniformBasicMegaLightPool;
 
     Buffer basicLightBuffer;
-    VkDescriptorPool descriptorPool;
+    VkDescriptorPool basicDescriptorPool;
     VkDescriptorSetLayout basicLayout;
     bool uniformPoolNeedsCopy = true;
     bool lbOK = false;
@@ -136,7 +136,7 @@ struct Renderer {
     Texture RGBATexture(const char* fileName);
     void FillTexture( void* data, Texture* tex);
     void AllocMemoryImage(u32 sz, VkImage handle, VkMemoryPropertyFlagBits wantedProperty, VkDeviceMemory* mem);
-    void BasicRenderPass(void);
+
     VkDescriptorSetLayout BasicDescriptorSetLayout(void);
     VkDescriptorPool BasicDescriptorPool(u32 numDescriptors);
     VkDescriptorSet BasicDescriptorSetAllocation(VkDescriptorPool* pool, VkDescriptorSetLayout* layout );
@@ -148,19 +148,12 @@ struct Renderer {
     VkShaderModule ShaderModule(const char* spirvFileName);
     void MoveUniformFromDMARegion(Buffer &stagingBuffer, Buffer &targetBuffer);
     void MoveVertexBufferFromDMARegion(Buffer &StagingBuffer, Buffer &targetBuffer);
-    void BasicRenderModel(BasicModel* model);
 
-    #if 0
-    void DrawBasic(BasicRenderData* renderData, VkImageView* imgView, VkFramebuffer* currentFB, VkCommandBuffer cb, VkImage img, BasicModel* model);
-    #endif
 
     
     void RefreshFramebuffer(BasicRenderData* rData, VkImageView* imgView, VkFramebuffer* fb );
     void InitBasicRender(u32 numDescriptors);
     BasicModel AddBasicModel(BasicModelFiles fileNames);
-    void UpdateModel(BasicModel* model);
-    void LightPassInternal(Vector<BasicModel>& model, Light* light, BasicRenderData* rData,
-                           PerFrameData* frameData, Image* img   );
     
     void MoveBufferGeneric(Buffer& fromStaging, Buffer& to);
     Buffer IndexBuffer(u32 sz, void* data);
