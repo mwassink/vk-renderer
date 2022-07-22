@@ -1,15 +1,27 @@
 #version 450
 
-layout(set=0, binding=0) uniform matrixUniforms {
+#define MAX_LIGHTS 100
+#define MAX_OBJECTS 500
+
+struct Matrices {
     mat4 modelViewProjection;
     mat4 modelView;
     mat3 normalMatrix;
 };
 
+struct LightTransforms {
+    mat4 modelLightMatrix;
+    vec3 lightCameraSpace;
+};
+
+
+
+layout(set=0, binding=0) uniform matrixUniforms {
+    Matrices matrices;
+};
+
 layout(set=0, binding=1) uniform lightUniforms {
-    uniform mat4 modelLightMatrix;
-    uniform vec2 FNTest;
-    uniform vec3 lightCameraSpace;
+    LightTransforms lightTransforms[100];
 };
 
 
