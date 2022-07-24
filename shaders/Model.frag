@@ -39,7 +39,7 @@ layout(location=0) out vec4 color;
 layout (push_constant) uniform push_constants {
     int lightNum;
     int objNum;
-    float f0
+    float f0;
 };
 
 

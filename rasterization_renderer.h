@@ -38,8 +38,14 @@ struct Model {
 
 struct RasterizationRenderer : public BasicRenderer {
     VkDescriptorPool descriptorPool;
-
+    VkPipeline shadowPipeline;
+    VkPipeline scenePipeline;
+    VkPipelineLayout sceneLayout;
+    VkPipelineLayout shadowLayout;
+    VkRenderPass sceneRenderPass;
+    VkRenderPass shadowRenderPass;
     VkDescriptorPool DescriptorPool(u32 nDescriptors);
+    
 
 	
 };
