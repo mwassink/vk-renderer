@@ -19,27 +19,31 @@ layout(set=0, binding=1) uniform lightingUniforms {
     Light lights[100];
 };
 
-layout(set=0, binding=2) uniform samplerCubeShadow depthMaps[MAX_LIGHTS];
-layout(set=0, binding=3) uniform sampler2D roughnessMap[MAX_OBJECTS];
-layout(set=0, binding=4) uniform sampler2D diffuseMap[MAX_OBJECTS];
-layout(set=0, binding=5) uniform sampler2D normalMap[MAX_OBJECTS];
-layout(set=0, binding=6) uniform sampler2D specularMap[MAX_OBJECTS];
+
+layout(set=0, binding=2) uniform sampler2D roughnessMap[MAX_OBJECTS];
+layout(set=0, binding=3) uniform sampler2D diffuseMap[MAX_OBJECTS];
+layout(set=0, binding=4) uniform sampler2D normalMap[MAX_OBJECTS];
+layout(set=0, binding=5) uniform sampler2D specularMap[MAX_OBJECTS];
 
 
 
-layout(location=0) in vec4 posModel;
+layout(location=0) in vec4 posWorldSpace;
 layout(location=1) in vec2 uv;
-layout(location=2) in vec3 lightDir;
-layout(location=3) in vec3 eyeDir;
-layout(location=4) in vec4 shadowCoord;
+layout(location=2) in vec3 n;
+layout(location=3) in vec3 t;
+layout(location=4) in vec4 b;
 
-layout(location=0) out vec4 color;
+layout(location=0) out vec4 worldSpaceNormal;
+layout(location=1) out vec3 diffuseColor;
+layout(location=2) out vec3 specularColor;
+layout(location=3) out vec3 f0Out;
+layout(location=4) out float roughness;
 
 
 layout (push_constant) uniform push_constants {
     int lightNum;
     int objNum;
-    float f0;
+    vec3 f0;
 };
 
 
@@ -81,24 +85,14 @@ float fetchCoeff(vec4 posIn) {
 
 void main(void) {
     
-    vec3 l = normalize(lightDir);
-    vec3 v = normalize(eyeDir);
+
     vec4 normalRaw = texture(normalMaps[objNum], uvCoord);
-    vec3 n = normalize(2.0*normalRaw.xyz - 1.0); // [0, 1] -> [-1, 1]
-    vec3 diffColor = texture(diffuseMap[objNum], uvCoord).xyz;
 
-    float lambertian = max(dot(n, l), 0.0f);
-    vec3 h = normalize(n + v);
-    float spec = pow(max(dot(n, h), 0.0f), shininess);
     
-    float scaleQuad = 1.0f / (4*M_PI*distSquared);
-    float lightIntensity = lightBrightness * scaleQuad;
-
-    float s = fetchCoeff(shadowCoord);
-    vec3 diffRefl = (lambertian* lightIntensity*s)*diffColor*lightColor;
-
-    vec3 specRefl = s * spec * lightIntensity * lightColor * specularColor;
-    vec3 ambient = ambientCoeff * diffColor;
-    color = vec4(diffRefl + specRefl + ambient, 1.0f);
+    worldSpaceNormal = vec3(normalRaw.x * t, normalRaw.y * b, normalRaw.z * n);
+    diffuseColor = texture(diffuseMap[objNum], uvCoord).xyz;
+    specularColor = texture(specularMap[objNum], uvCoord).xyz;
+    f0Out = f0;
+    roughness = texture(roughnessMap[objNum], uvCoord).xyz;
     
 }

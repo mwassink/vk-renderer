@@ -45,6 +45,10 @@ struct RasterizationRenderer : public BasicRenderer {
     VkRenderPass sceneRenderPass;
     VkRenderPass shadowRenderPass;
     VkDescriptorPool DescriptorPool(u32 nDescriptors);
+    VkDescriptorSet DescriptorSetAllocation()
+    VkPipeline Pipeline(u32 mode);
+
+
     
 
 	

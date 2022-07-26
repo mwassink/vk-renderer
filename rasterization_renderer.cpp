@@ -21,34 +21,63 @@ VkDescriptorPool RasterizationRenderer::DescriptorPool(u32 nDescriptors) {
 }
 
 
-VkPipeline RasterizationRenderer::ScenePipeline(void) {
+VkPipeline RasterizationRenderer::Pipeline(u32 mode) {
 
     
-    auto vMod = ShaderModule("shaders/Model.vert");
-    auto pMod = ShaderModule("shaders/Model.frag");
+    VkShaderModule vMod; 
+    VkShaderModule pMod;
+    VkPipelineShaderStageCreateInfo shaders[2];
+    VkPipelineVertexInputStateCreateInfo inStateCInfo;
+    if (mode == 0) {
+        vMod = ShaderModule("shaders/Model.vert");
+        pMod = ShaderModule("shaders/Model.frag");
+
+        shaders[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vMod, "main", nullptr };
+        shaders[1] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, pMod, "main", nullptr };
+
+
+        VkVertexInputBindingDescription bindingDescription = {
+            0, sizeof(Vertex)
+        };
+        u32 binding = bindingDescription.binding;
+        VkVertexInputAttributeDescription vertexAttrDescrs[] = {
+            {0, binding, VK_FORMAT_R32G32B32A32_SFLOAT, 0},
+            {1, binding, VK_FORMAT_R32G32_SFLOAT, 4 * sizeof(f32)},
+            {2, binding, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal)},
+            {3, binding, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, tangent)}
+        };
+
+        VkPipelineVertexInputStateCreateInfo tmp = {
+            VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, 0, 1, &bindingDescription, 4, vertexAttrDescrs
+        };
+        inStateCInfo = tmp;
+    }
+    else if (mode == 1) {
+        vMod = ShaderModule("shaders/Shadow.vert");
+        pMod = ShaderModule("shaders/Shadow.frag");
+
+
+        VkPipelineShaderStageCreateInfo shaders[] = {
+            {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vMod, "main", nullptr},
+            {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, pMod, "main", nullptr}
+        };
+
+        VkVertexInputBindingDescription bindingDescription = {
+            0, sizeof(Vertex)
+        };
+        auto binding = bindingDescription.binding;
+        VkVertexInputAttributeDescription vertexAttrDescrs[] = {
+            {0, binding, VK_FORMAT_R32G32B32A32_SFLOAT, 0}
+        };
+
+        VkPipelineVertexInputStateCreateInfo tmp = {
+            VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, 0, 1, &bindingDescription, 1, vertexAttrDescrs
+        };
+        inStateCInfo = tmp;
+    }
+    
 
     VkPipeline pl;
-
-    VkPipelineShaderStageCreateInfo shaders[] ={
-        {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vMod, "main", nullptr},
-        {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, pMod, "main", nullptr}
-    };
-
-    VkVertexInputBindingDescription bindingDescription = {
-        0, sizeof(Vertex)
-    };
-    auto binding = bindingDescription.binding;
-    VkVertexInputAttributeDescription vertexAttrDescrs [] = {
-        {0, binding, VK_FORMAT_R32G32B32A32_SFLOAT, 0},
-        {1, binding, VK_FORMAT_R32G32_SFLOAT, 4 * sizeof(f32)},
-        {2, binding, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal)},
-        {3, binding, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, tangent)}        
-    };
-
-    VkPipelineVertexInputStateCreateInfo inStateCInfo = {
-        VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, 0, 1, &bindingDescription, 4, vertexAttrDescrs
-    };
-
     VkPipelineInputAssemblyStateCreateInfo inAsmCreateInfo = {
         VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, nullptr, 0, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,VK_FALSE
     };
@@ -59,6 +88,10 @@ VkPipeline RasterizationRenderer::ScenePipeline(void) {
     VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {
         VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,nullptr, 0, VK_FALSE, VK_FALSE, VK_POLYGON_MODE_FILL,
         VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f 
+    };
+
+    VkPipelineMultisampleStateCreateInfo multiStateCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, nullptr, 0, VK_SAMPLE_COUNT_1_BIT, VK_FALSE, 1.0f, nullptr, VK_FALSE, VK_FALSE
     };
 
     VkPipelineColorBlendAttachmentState cBlendState = {
@@ -73,13 +106,14 @@ VkPipeline RasterizationRenderer::ScenePipeline(void) {
     VkDynamicState dState[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
     VkPipelineDynamicStateCreateInfo dStateCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO, nullptr,
-        0, 2, dStates};
+        0, 2, dState};
 
     VkGraphicsPipelineCreateInfo pci = {
         VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         nullptr,
         0,
         2,
+        shaders,
         &inStateCInfo,
         &inAsmCreateInfo,
         nullptr,
