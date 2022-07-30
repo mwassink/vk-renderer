@@ -40,8 +40,15 @@ struct FBAttachment {
     VkImageView view;
     VkFormat format;
 
-    FBAttachment(VkFormat format, VkImageUsageFlags flags, u32 w, u32 h, VulkanContext& ctx)
+    FBAttachment(VkFormat format, VkImageUsageFlags flags, u32 w, u32 h, VulkanContext& ctx);
+    FBAttachment() = default;
 
+};
+
+struct PushGatherFrag{
+    int lnum;
+    int objNum;
+    Vector3 f0;
 };
 
 struct GBufferAttachments {
@@ -66,23 +73,28 @@ struct RasterizationRenderer : public BasicRenderer {
 
     static VkFormat const DepthFormat = VK_FORMAT_D16_UNORM;
 
+    static const int numColorAttachments = 5;
+    static const int numDepthAttachments = 1;
+    static const int totalAttachments = numColorAttachments + numDepthAttachments;
 
-    VkDescriptorPool descriptorPool;
-    
+
+    VkDescriptorPool descriptorPool;    
     VkPipelineLayout sceneLayout;
-    VkPipelineLayout shadowLayout;
-    VkRenderPass sceneRenderPass;
-    VkRenderPass shadowRenderPass;
+    VkRenderPass rp;
+    VkSampler colorSampler;
+    VkPipeline pipeline;
+    GBufferAttachments gBufferAttachments;
+    
+
+
+
     VkDescriptorSetLayout DescriptorSetLayoutGatherPass();
     VkDescriptorPool DescriptorPoolGatherPass(u32 nDescriptors);
-    VkPipeline PipelineGatherPass(u32 mode);
+    VkPipeline PipelineGatherPass(u32 mode, GBufferAttachments& attachments);
     VkPipelineLayout PipelineLayoutGatherPass(VkDescriptorSetLayout& dsLayout);
     void CreateAttachments(GBufferAttachments* attachments, u32 w, u32 h);
     VkRenderPass RenderPassGatherPass(GBufferAttachments& attachments);
-
-
-
-
+    void Init();
 
     
 

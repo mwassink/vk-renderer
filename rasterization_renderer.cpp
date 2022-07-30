@@ -21,13 +21,50 @@ VkDescriptorPool RasterizationRenderer::DescriptorPoolGatherPass(u32 nDescriptor
 }
 
 
-VkPipeline RasterizationRenderer::PipelineGatherPass(u32 mode) {
+VkPipeline RasterizationRenderer::PipelineGatherPass(u32 mode, GBufferAttachments& attachments) {
 
     
     VkShaderModule vMod; 
     VkShaderModule pMod;
     VkPipelineShaderStageCreateInfo shaders[2];
     VkPipelineVertexInputStateCreateInfo inStateCInfo;
+
+
+
+    rp = RenderPassGatherPass(attachments);
+    VkDescriptorSetLayout dsLayout = DescriptorSetLayoutGatherPass();
+    VkPipelineLayout plLayout = PipelineLayoutGatherPass(dsLayout);
+
+    VkPipeline pl;
+    VkPipelineInputAssemblyStateCreateInfo inAsmCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, nullptr, 0, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,VK_FALSE
+    };
+
+    VkPipelineViewportStateCreateInfo vpStateCrInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, nullptr, 0, 1, nullptr, 1, nullptr
+    };
+    VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,nullptr, 0, VK_FALSE, VK_FALSE, VK_POLYGON_MODE_FILL,
+        VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f
+    };
+
+    VkPipelineMultisampleStateCreateInfo multiStateCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, nullptr, 0, VK_SAMPLE_COUNT_1_BIT, VK_FALSE, 1.0f, nullptr, VK_FALSE, VK_FALSE
+    };
+
+    VkPipelineColorBlendAttachmentState cBlendState = {
+        VK_FALSE, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_ONE,VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
+        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT
+    };
+
+    VkDynamicState dState[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+
+    VkPipelineDynamicStateCreateInfo dStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO, nullptr,
+        0, 2, dState };
+
+
+
+
     if (mode == 0) {
         vMod = ShaderModule("shaders/Model.vert");
         pMod = ShaderModule("shaders/Model.frag");
@@ -51,88 +88,51 @@ VkPipeline RasterizationRenderer::PipelineGatherPass(u32 mode) {
             VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, 0, 1, &bindingDescription, 4, vertexAttrDescrs
         };
         inStateCInfo = tmp;
+
+        VkPipelineColorBlendAttachmentState cBlendStates[numColorAttachments];
+        for (int i = 0; i < numColorAttachments; i++) cBlendStates[i] = cBlendState;
+
+        VkPipelineColorBlendStateCreateInfo cbStateInfo = {
+            VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, nullptr, 0, VK_FALSE, VK_LOGIC_OP_COPY, 5, cBlendStates, {0, 0, 0, 0}
+        };
+
+
+
+        VkGraphicsPipelineCreateInfo pci = {
+            VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            nullptr,
+            0,
+            2,
+            shaders,
+            &inStateCInfo,
+            &inAsmCreateInfo,
+            nullptr,
+            &vpStateCrInfo,
+            &rasterizationStateCreateInfo,
+            &multiStateCreateInfo,
+            nullptr,
+            &cbStateInfo,
+            &dStateCreateInfo,
+            plLayout,
+            rp,
+            0,
+            VK_NULL_HANDLE,
+            -1
+        };
+
+        if (vkCreateGraphicsPipelines(ctx.dev, VK_NULL_HANDLE, 1, &pci, nullptr, &pl)) {
+            ctx.pform.FatalError("Could not create the basic pipeline!", "Vulkan Runtime Error");
+        }
+
+
     }
     else if (mode == 1) {
-        vMod = ShaderModule("shaders/Shadow.vert");
-        pMod = ShaderModule("shaders/Shadow.frag");
 
-
-        VkPipelineShaderStageCreateInfo shaders[] = {
-            {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vMod, "main", nullptr},
-            {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, pMod, "main", nullptr}
-        };
-
-        VkVertexInputBindingDescription bindingDescription = {
-            0, sizeof(Vertex)
-        };
-        auto binding = bindingDescription.binding;
-        VkVertexInputAttributeDescription vertexAttrDescrs[] = {
-            {0, binding, VK_FORMAT_R32G32B32A32_SFLOAT, 0}
-        };
-
-        VkPipelineVertexInputStateCreateInfo tmp = {
-            VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, 0, 1, &bindingDescription, 1, vertexAttrDescrs
-        };
-        inStateCInfo = tmp;
     }
-    
-
-    VkPipeline pl;
-    VkPipelineInputAssemblyStateCreateInfo inAsmCreateInfo = {
-        VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, nullptr, 0, VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,VK_FALSE
-    };
-
-    VkPipelineViewportStateCreateInfo vpStateCrInfo = {
-        VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO, nullptr, 0, 1, nullptr, 1, nullptr
-    };
-    VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {
-        VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,nullptr, 0, VK_FALSE, VK_FALSE, VK_POLYGON_MODE_FILL,
-        VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f 
-    };
-
-    VkPipelineMultisampleStateCreateInfo multiStateCreateInfo = {
-        VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO, nullptr, 0, VK_SAMPLE_COUNT_1_BIT, VK_FALSE, 1.0f, nullptr, VK_FALSE, VK_FALSE
-    };
-
-    VkPipelineColorBlendAttachmentState cBlendState = {
-        VK_FALSE, VK_BLEND_FACTOR_ONE, VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD, VK_BLEND_FACTOR_ONE,VK_BLEND_FACTOR_ZERO, VK_BLEND_OP_ADD,
-        VK_COLOR_COMPONENT_R_BIT |VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT  
-    };
-
-    VkPipelineColorBlendStateCreateInfo cbStateInfo = {
-        VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, nullptr, 0, VK_FALSE, VK_LOGIC_OP_COPY, 1, &cBlendState, {0, 0, 0, 0}
-    };
-
-    VkDynamicState dState[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-
-    VkPipelineDynamicStateCreateInfo dStateCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO, nullptr,
-        0, 2, dState};
-
-    VkGraphicsPipelineCreateInfo pci = {
-        VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-        nullptr,
-        0,
-        2,
-        shaders,
-        &inStateCInfo,
-        &inAsmCreateInfo,
-        nullptr,
-        &vpStateCrInfo,
-        &rasterizationStateCreateInfo,
-        &multiStateCreateInfo,
-        nullptr,
-        &cbStateInfo,
-        &dStateCreateInfo,
-        pipelineLayout,
-        renderPass,
-        0,
-        VK_NULL_HANDLE,
-        -1
-    };
-
-    if (vkCreateGraphicsPipelines(ctx.dev, VK_NULL_HANDLE, 1, &pci, nullptr, &pl )) {
-        ctx.pform.FatalError("Could not create the basic pipeline!", "Vulkan Runtime Error");
+    else {
+        ctx.pform.FatalError("Unknown mode for pipeline", "Vulkan Runtime Error");
     }
+
     return pl;
 }
 
@@ -168,17 +168,18 @@ VkPipelineLayout RasterizationRenderer::PipelineLayoutGatherPass(VkDescriptorSet
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, nullptr, 0, 1, &dsLayout, 0, nullptr
     };
 
-    VkPushConstantRange pushConstant;
-    pushConstant.offset = 0;
-    pushConstant.size = sizeof(u32);
-    pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    VkPushConstantRange pushConstants[2];
+    pushConstants[0].offset = 1;
+    pushConstants[0].size = sizeof(u32);
+    pushConstants[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+    pushConstants[1].offset = 0;
+    pushConstants[1].size = sizeof(PushGatherFrag);
+    pushConstants[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 
-
-
-
-    layoutCreateInfo.pPushConstantRanges = &pushConstant;
-    layoutCreateInfo.pushConstantRangeCount = 1;
+    layoutCreateInfo.pPushConstantRanges = pushConstants;
+    layoutCreateInfo.pushConstantRangeCount = 2;
     if (vkCreatePipelineLayout(ctx.dev, &layoutCreateInfo, nullptr, &plLayout) != VK_SUCCESS) {
         ctx.pform.FatalError("Unable to create a basic pipeline layout", "Vulkan Runtime Error");
     }
@@ -188,10 +189,9 @@ VkPipelineLayout RasterizationRenderer::PipelineLayoutGatherPass(VkDescriptorSet
 
 VkRenderPass RasterizationRenderer::RenderPassGatherPass(GBufferAttachments& attachments) {
     VkRenderPass rp;
+    VkAttachmentDescription attachmentDescrs[totalAttachments];
 
-    VkAttachmentDescription attachmentDescrs[6];
-
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < totalAttachments; i++) {
         attachmentDescrs[i].samples = VK_SAMPLE_COUNT_1_BIT;
         attachmentDescrs[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
         attachmentDescrs[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -210,21 +210,51 @@ VkRenderPass RasterizationRenderer::RenderPassGatherPass(GBufferAttachments& att
         attachmentDescrs[i].format = attachments.attachments[i].format;
     }
 
+    
+    VkAttachmentReference cReferences[5];
+    VkAttachmentReference dReference;
 
+    for (int i = 0; i < numColorAttachments; i++) {        
+        cReferences[i].attachment = i;
+        cReferences[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    }
 
+    dReference.attachment = numColorAttachments;
+    dReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+    VkSubpassDescription sp = {};
+    sp.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    sp.pColorAttachments = cReferences;
+    sp.colorAttachmentCount = numColorAttachments;
+    sp.pDepthStencilAttachment = &dReference;
 
+    //The effect is all the commands in the source scope have to finish at least the srcStageMask stage in their execution,
+    // before any of the commands in the destination scope are even allowed to start the dstStageMask stage of their execution.
 
-
-
-
-    VkAttachmentDescription attachmentDescrs[1];
-    VkSubpassDescription subpassDescriptions[1];
-
+    VkSubpassDependency dependencies[2] = {
+        {
+            VK_SUBPASS_EXTERNAL,
+            0,
+            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_ACCESS_MEMORY_READ_BIT,
+            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_DEPENDENCY_BY_REGION_BIT,
+        },
+        {
+            0,
+            VK_SUBPASS_EXTERNAL,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_ACCESS_MEMORY_READ_BIT,
+            VK_DEPENDENCY_BY_REGION_BIT,
+        }
+    };
 
 
     VkRenderPassCreateInfo rpCreateInfo = {
-        VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO, nullptr, 0 ,1, attachmentDescrs, 1, subpassDescriptions, 0, nullptr
+        VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO, nullptr, 0 ,1, attachmentDescrs, 1, &sp, 0, nullptr
     };
     if (vkCreateRenderPass(ctx.dev, &rpCreateInfo, nullptr, &rp) != VK_SUCCESS) {
         ctx.pform.FatalError("Could not create render pass", "Vulkan Runtime Error");
@@ -276,6 +306,7 @@ FBAttachment::FBAttachment(VkFormat format, VkImageUsageFlags flags, u32 w, u32 
     }
     VkPhysicalDeviceMemoryProperties  physProps;
     vkGetPhysicalDeviceMemoryProperties(ctx.gpu, &physProps);
+    vkGetImageMemoryRequirements(ctx.dev, this->image, &memReqs);
     auto mType = BasicRenderer::GetMemoryTypes(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, physProps);
     VkMemoryAllocateInfo memalloc = {
         VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -313,4 +344,37 @@ void RasterizationRenderer::CreateAttachments(GBufferAttachments* attachments, u
     attachments->specularColor = FBAttachment(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, w, h, ctx);
     attachments->roughness = FBAttachment(VK_FORMAT_R16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, w, h, ctx);
     attachments->depth = FBAttachment(depthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, w, h, ctx);
+}
+
+void RasterizationRenderer::Init() {
+    
+    CreateAttachments(&gBufferAttachments, ctx.ext.width, ctx.ext.height);
+    pipeline = PipelineGatherPass(0, gBufferAttachments);
+
+    VkImageView attachments[totalAttachments];
+    for (int i = 0; i < totalAttachments; i++) attachments[i] = gBufferAttachments.attachments[i].view;
+
+    VkFramebufferCreateInfo fbCreateInfo = {
+        VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+        nullptr,
+        0,
+        rp,
+        totalAttachments,
+        attachments,
+        ctx.ext.width,
+        ctx.ext.height,
+        1,
+    };
+
+    VkSamplerCreateInfo samplerCreateInfo = {
+        VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, nullptr, 0 , VK_FILTER_NEAREST, VK_FILTER_NEAREST,
+        VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+        0.0f, VK_FALSE, 1.0f, VK_FALSE, VK_COMPARE_OP_ALWAYS, 0.0f, 1.0f, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE, VK_FALSE
+    };
+
+    if (vkCreateSampler(ctx.dev, &samplerCreateInfo, nullptr, &colorSampler) != VK_SUCCESS) {
+        ctx.pform.FatalError("Unable to make sampler!", "Vulkan Runtime Error");
+    }
+
+
 }
