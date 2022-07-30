@@ -34,19 +34,44 @@ struct Model {
     u32 matrixBufferOffset;
 };
 
+struct FBAttachment {
+    VkImage image;
+    VkDeviceMemory mem;
+    VkImageView view;
+    VkFormat format;
+
+    FBAttachment(VkFormat format, VkImageUsageFlags flags, u32 w, u32 h, VulkanContext& ctx)
+
+};
+
+struct GBufferAttachments {
+    FBAttachment normals;
+    FBAttachment diffuseColor;
+    FBAttachment specularColor;
+    FBAttachment f0Out;
+    FBAttachment roughness;
+};
+
 
 
 struct RasterizationRenderer : public BasicRenderer {
+
+    static VkFormat const DepthFormat = VK_FORMAT_D16_UNORM;
+
+
     VkDescriptorPool descriptorPool;
-    VkPipeline shadowPipeline;
-    VkPipeline scenePipeline;
+    
     VkPipelineLayout sceneLayout;
     VkPipelineLayout shadowLayout;
     VkRenderPass sceneRenderPass;
     VkRenderPass shadowRenderPass;
-    VkDescriptorPool DescriptorPool(u32 nDescriptors);
-    VkDescriptorSet DescriptorSetAllocation()
-    VkPipeline Pipeline(u32 mode);
+    VkDescriptorSetLayout DescriptorSetLayoutGatherPass();
+    VkDescriptorPool DescriptorPoolGatherPass(u32 nDescriptors);
+    VkPipeline PipelineGatherPass(u32 mode);
+    VkPipelineLayout PipelineLayoutGatherPass(VkDescriptorSetLayout& dsLayout);
+    VkRenderPass RenderPassGatherPass(void);
+
+
 
 
     

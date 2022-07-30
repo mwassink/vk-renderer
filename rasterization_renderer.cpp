@@ -1,7 +1,7 @@
 
 #include "rasterization_renderer.h"
 
-VkDescriptorPool RasterizationRenderer::DescriptorPool(u32 nDescriptors) {
+VkDescriptorPool RasterizationRenderer::DescriptorPoolGatherPass(u32 nDescriptors) {
     VkDescriptorPool pool;
     Vector<VkDescriptorPoolSize> szes(7);
     szes[0] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors }; //shadows
@@ -21,7 +21,7 @@ VkDescriptorPool RasterizationRenderer::DescriptorPool(u32 nDescriptors) {
 }
 
 
-VkPipeline RasterizationRenderer::Pipeline(u32 mode) {
+VkPipeline RasterizationRenderer::PipelineGatherPass(u32 mode) {
 
     
     VkShaderModule vMod; 
@@ -123,8 +123,8 @@ VkPipeline RasterizationRenderer::Pipeline(u32 mode) {
         nullptr,
         &cbStateInfo,
         &dStateCreateInfo,
-        sceneLayout,
-        sceneRenderPass,
+        pipelineLayout,
+        renderPass,
         0,
         VK_NULL_HANDLE,
         -1
@@ -136,3 +136,143 @@ VkPipeline RasterizationRenderer::Pipeline(u32 mode) {
     return pl;
 }
 
+
+VkDescriptorSetLayout RasterizationRenderer::DescriptorSetLayoutGatherPass(void) {
+    VkDescriptorSetLayout basicLayout;
+
+    Vector<VkDescriptorSetLayoutBinding> bindings(7);
+
+    bindings[0] = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT }; //matrix
+    bindings[1] = { 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // light
+
+    bindings[2] = { 2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // roughness
+    bindings[3] = { 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // diffuse
+    bindings[4] = { 4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; //specular
+    bindings[5] = { 5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; //normal
+
+    VkDescriptorSetLayoutCreateInfo setCreateInfo = {
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, nullptr, 0, (u32)bindings.sz, bindings.data
+
+    };
+
+    if (vkCreateDescriptorSetLayout(ctx.dev, &setCreateInfo, nullptr, &basicLayout) != VK_SUCCESS) {
+        ctx.pform.FatalError("Unable to create basic descriptor set layout", "Vulkan Runtime Error");
+    }
+
+    return basicLayout;
+}
+
+VkPipelineLayout RasterizationRenderer::PipelineLayoutGatherPass(VkDescriptorSetLayout& dsLayout) {
+    VkPipelineLayout plLayout;
+    VkPipelineLayoutCreateInfo layoutCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, nullptr, 0, 1, &dsLayout, 0, nullptr
+    };
+
+    VkPushConstantRange pushConstant;
+    pushConstant.offset = 0;
+    pushConstant.size = sizeof(u32);
+    pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+
+
+
+
+    layoutCreateInfo.pPushConstantRanges = &pushConstant;
+    layoutCreateInfo.pushConstantRangeCount = 1;
+    if (vkCreatePipelineLayout(ctx.dev, &layoutCreateInfo, nullptr, &plLayout) != VK_SUCCESS) {
+        ctx.pform.FatalError("Unable to create a basic pipeline layout", "Vulkan Runtime Error");
+    }
+    return plLayout;
+}
+
+
+VkRenderPass RasterizationRenderer::RenderPassGatherPass(void) {
+    VkRenderPass rp;
+
+    VkAttachmentDescription attachmentDescrs[] = { {
+        0, VK_FORMAT_D16_UNORM , VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,  VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL }
+    };
+    VkAttachmentReference colorReferences[] = { {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL} };
+    VkSubpassDescription subpassDescriptions[] = { {0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, colorReferences, nullptr, nullptr, 0, nullptr} };
+    VkRenderPassCreateInfo rpCreateInfo = {
+        VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO, nullptr, 0 ,1, attachmentDescrs, 1, subpassDescriptions, 0, nullptr
+    };
+    if (vkCreateRenderPass(ctx.dev, &rpCreateInfo, nullptr, &rp) != VK_SUCCESS) {
+        ctx.pform.FatalError("Could not create render pass", "Vulkan Runtime Error");
+    }
+
+    return rp;
+}
+
+FBAttachment::FBAttachment(VkFormat format, VkImageUsageFlags flags, u32 w, u32 h, VulkanContext& ctx) {
+    VkImageAspectFlags aspectMask = 0;
+    VkImageLayout imgLayout;
+    this->format = format;
+
+    if (flags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) {
+        aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        imgLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    } else if (flags & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+    {
+        aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+        imgLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    }
+
+    VkImageCreateInfo cInfo = {
+        VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        nullptr,
+        0,
+        VK_IMAGE_TYPE_2D,
+        format,
+        {
+            w,
+            h,
+            1
+        },
+        1,
+        1,
+        VK_SAMPLE_COUNT_1_BIT,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+        VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_SHARING_MODE_EXCLUSIVE,
+        0,
+        nullptr,
+        VK_IMAGE_LAYOUT_UNDEFINED
+    };
+
+    VkMemoryRequirements memReqs;
+    if (vkCreateImage(ctx.dev, &cInfo, nullptr, &this->image) != VK_SUCCESS) {
+        ctx.pform.FatalError("Unable to create a vulkan image", "Vulkan Runtime Error");
+    }
+    VkPhysicalDeviceMemoryProperties  physProps;
+    vkGetPhysicalDeviceMemoryProperties(ctx.gpu, &physProps);
+    auto mType = BasicRenderer::GetMemoryTypes(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, physProps);
+    VkMemoryAllocateInfo memalloc = {
+        VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+        nullptr,
+        memReqs.size,
+        mType
+    };
+
+    vkAllocateMemory(ctx.dev, &memalloc, nullptr, &this->mem);
+    vkBindImageMemory(ctx.dev, this->image, this->mem, 0);
+
+
+    VkImageViewCreateInfo viewCreateInfo = {
+        VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+        nullptr,
+        0,
+        this->image, VK_IMAGE_VIEW_TYPE_2D,
+        this->format,
+        {
+            VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY ,VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY
+        },
+        {
+            VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1
+        }
+    };
+
+    vkCreateImageView(ctx.dev, &viewCreateInfo, nullptr, &this->view);
+}

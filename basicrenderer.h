@@ -139,7 +139,7 @@ struct BasicRenderer {
 
     VkDescriptorSetLayout BasicDescriptorSetLayout(void);
     VkDescriptorPool BasicDescriptorPool(u32 numDescriptors);
-    VkDescriptorSet BasicDescriptorSetAllocation(VkDescriptorPool* pool, VkDescriptorSetLayout* layout );
+    VkDescriptorSet DescriptorSet(VkDescriptorPool* pool, VkDescriptorSetLayout* layout );
     void WriteBasicDescriptorSet(VkDescriptorSet& descriptorSet, BasicModel* model, u32 lights);
     
     void BasicPipelineLayout(BasicRenderData* renderData);
@@ -177,6 +177,8 @@ struct BasicRenderer {
     u32  RoundUp(u32);
     bool Runnable();
     void WindowUpdates(void);
+    static s32 GetMemoryTypes(u32 typeBits, VkMemoryPropertyFlags propertiesFlags, VkPhysicalDeviceMemoryProperties devProperties);
+
     
    
     

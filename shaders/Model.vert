@@ -10,20 +10,12 @@ struct Matrices {
     mat3 normalMatrix;
 };
 
-struct LightTransforms {
-    mat4 modelLightMatrix;
-    vec3 lightCameraSpace;
-};
-
 
 
 layout(set=0, binding=0) uniform objectUniforms {
-    Matrices matrices;
+    Matrices matrices[500];
 };
 
-layout(set=0, binding=1) uniform lightUniforms {
-    LightTransforms lightTransforms[100];
-};
 
 
 layout(location=0) in vec4 pos;
@@ -39,9 +31,9 @@ layout(location=2) out vec3 n;
 layout(location=3) out vec3 t;
 layout(location=4) out vec4 b;
 
-
-
-
+layout (push_constant) uniform modelIndex {
+    int modelNum;
+};
 
 out gl_PerVertex {
     vec4 gl_Position;

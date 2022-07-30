@@ -380,7 +380,7 @@ VkDescriptorPool BasicRenderer::BasicDescriptorPool(u32 nDescriptors) {
 
 }
 
-VkDescriptorSet BasicRenderer::BasicDescriptorSetAllocation(VkDescriptorPool* pool, VkDescriptorSetLayout* layout ) {
+VkDescriptorSet BasicRenderer::DescriptorSet(VkDescriptorPool* pool, VkDescriptorSetLayout* layout ) {
 
     VkDescriptorSet descriptorSet;
     VkDescriptorSetAllocateInfo allocInfo = {
@@ -568,7 +568,7 @@ void BasicRenderer::InitBasicRender(u32 numDescriptors) {
     rData.rPass = rp;
     auto pool = BasicDescriptorPool(numDescriptors);
     basicDescriptorPool = pool;
-    auto set = BasicDescriptorSetAllocation(&pool, &rData.dsLayout);
+    auto set = DescriptorSet(&pool, &rData.dsLayout);
     rData.descriptorSet = set;
     BasicPipeline(&rData);
     
@@ -581,7 +581,7 @@ BasicModel BasicRenderer::AddBasicModel(BasicModelFiles fileNames) {
     BasicModel model = LoadModelObj(fileNames.objFile, fileNames.rgbaName);
     model.vertexBuffer = VertexBuffer(RoundUp(model.vData.sz* sizeof (BasicVertexData)), model.vData.data);
     model.indexBuffer = IndexBuffer(RoundUp(model.indices.sz* sizeof(u32)), model.indices.data);
-    model.descriptorSet = BasicDescriptorSetAllocation(&basicDescriptorPool, &basicLayout);
+    model.descriptorSet = DescriptorSet(&basicDescriptorPool, &basicLayout);
 
     return model;
 }
@@ -1035,4 +1035,17 @@ void BasicRenderer::WindowUpdates(void) {
         ctx.currFrame = 0;
     }
 
+}
+
+
+s32 BasicRenderer::GetMemoryTypes(u32 typeBits, VkMemoryPropertyFlags propertiesFlags, VkPhysicalDeviceMemoryProperties devProperties) {
+    for (int i = 0; i < devProperties.memoryTypeCount; i++) {
+        if ((typeBits & 1) == 1) {
+            if (devProperties.memoryTypes[i].propertyFlags & propertiesFlags) {
+                return i;
+            }
+        }
+        typeBits >>= 1;
+    }
+    return -1;
 }
