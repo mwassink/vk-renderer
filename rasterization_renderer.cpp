@@ -140,7 +140,7 @@ VkPipeline RasterizationRenderer::PipelineGatherPass(u32 mode) {
 VkDescriptorSetLayout RasterizationRenderer::DescriptorSetLayoutGatherPass(void) {
     VkDescriptorSetLayout basicLayout;
 
-    Vector<VkDescriptorSetLayoutBinding> bindings(7);
+    Vector<VkDescriptorSetLayoutBinding> bindings(6);
 
     bindings[0] = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT }; //matrix
     bindings[1] = { 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // light
@@ -186,15 +186,43 @@ VkPipelineLayout RasterizationRenderer::PipelineLayoutGatherPass(VkDescriptorSet
 }
 
 
-VkRenderPass RasterizationRenderer::RenderPassGatherPass(void) {
+VkRenderPass RasterizationRenderer::RenderPassGatherPass(GBufferAttachments& attachments) {
     VkRenderPass rp;
 
-    VkAttachmentDescription attachmentDescrs[] = { {
-        0, VK_FORMAT_D16_UNORM , VK_SAMPLE_COUNT_1_BIT, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE,  VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-        VK_ATTACHMENT_STORE_OP_DONT_CARE, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL }
-    };
-    VkAttachmentReference colorReferences[] = { {0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL} };
-    VkSubpassDescription subpassDescriptions[] = { {0, VK_PIPELINE_BIND_POINT_GRAPHICS, 0, nullptr, 1, colorReferences, nullptr, nullptr, 0, nullptr} };
+    VkAttachmentDescription attachmentDescrs[6];
+
+    for (int i = 0; i < 6; i++) {
+        attachmentDescrs[i].samples = VK_SAMPLE_COUNT_1_BIT;
+        attachmentDescrs[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        attachmentDescrs[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        attachmentDescrs[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        attachmentDescrs[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        if (i == 5)
+        {
+            attachmentDescrs[i].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            attachmentDescrs[i].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        }
+        else
+        {
+            attachmentDescrs[i].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            attachmentDescrs[i].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        }
+        attachmentDescrs[i].format = attachments.attachments[i].format;
+    }
+
+
+
+
+
+
+
+
+
+    VkAttachmentDescription attachmentDescrs[1];
+    VkSubpassDescription subpassDescriptions[1];
+
+
+
     VkRenderPassCreateInfo rpCreateInfo = {
         VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO, nullptr, 0 ,1, attachmentDescrs, 1, subpassDescriptions, 0, nullptr
     };
@@ -275,4 +303,14 @@ FBAttachment::FBAttachment(VkFormat format, VkImageUsageFlags flags, u32 w, u32 
     };
 
     vkCreateImageView(ctx.dev, &viewCreateInfo, nullptr, &this->view);
+}
+
+void RasterizationRenderer::CreateAttachments(GBufferAttachments* attachments, u32 w, u32 h) {
+    VkFormat depthFormat = GetDepthFormat();
+    attachments->diffuseColor = FBAttachment(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, w, h, ctx);
+    attachments->f0Out = FBAttachment(VK_FORMAT_R16G16B16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, w, h, ctx);
+    attachments->normals = FBAttachment(VK_FORMAT_R16G16B16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, w, h, ctx);
+    attachments->specularColor = FBAttachment(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, w, h, ctx);
+    attachments->roughness = FBAttachment(VK_FORMAT_R16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, w, h, ctx);
+    attachments->depth = FBAttachment(depthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, w, h, ctx);
 }

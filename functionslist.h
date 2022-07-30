@@ -117,4 +117,5 @@ VK_D_FN( vkCmdBindIndexBuffer)
 VK_D_FN(vkCmdDrawIndexed)
 VK_D_FN(vkCmdBindDescriptorSets)
 VK_D_FN(vkCmdPushConstants)
+VK_D_FN(vkGetPhysicalDeviceFormatProperties)
 #undef VK_D_FN

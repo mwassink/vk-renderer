@@ -1049,3 +1049,20 @@ s32 BasicRenderer::GetMemoryTypes(u32 typeBits, VkMemoryPropertyFlags properties
     }
     return -1;
 }
+
+
+VkFormat BasicRenderer::GetDepthFormat() {
+    VkFormat formats[] = {VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D32_SFLOAT, VK_FORMAT_D24_UNORM_S8_UINT, VK_FORMAT_D16_UNORM_S8_UINT, VK_FORMAT_D16_UNORM};
+
+    for (int i = 0; i < 5; i++) {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(ctx.gpu, formats[i], &props);
+
+        if ((props.optimalTilingFeatures & VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT) && (props.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT)) {
+            return formats[i];
+        }
+    }
+    ctx.pform.FatalError("Unable to find a depth format!", "Vulkan Runtime Error");
+}
+
+

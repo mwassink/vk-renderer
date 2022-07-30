@@ -45,11 +45,19 @@ struct FBAttachment {
 };
 
 struct GBufferAttachments {
-    FBAttachment normals;
-    FBAttachment diffuseColor;
-    FBAttachment specularColor;
-    FBAttachment f0Out;
-    FBAttachment roughness;
+    union {
+        struct {
+            FBAttachment normals;
+            FBAttachment diffuseColor;
+            FBAttachment specularColor;
+            FBAttachment f0Out;
+            FBAttachment roughness;
+            FBAttachment depth;
+        };
+        struct {
+            FBAttachment attachments[6];
+        };
+    };
 };
 
 
@@ -69,7 +77,9 @@ struct RasterizationRenderer : public BasicRenderer {
     VkDescriptorPool DescriptorPoolGatherPass(u32 nDescriptors);
     VkPipeline PipelineGatherPass(u32 mode);
     VkPipelineLayout PipelineLayoutGatherPass(VkDescriptorSetLayout& dsLayout);
-    VkRenderPass RenderPassGatherPass(void);
+    void CreateAttachments(GBufferAttachments* attachments, u32 w, u32 h);
+    VkRenderPass RenderPassGatherPass(GBufferAttachments& attachments);
+
 
 
 

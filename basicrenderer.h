@@ -178,6 +178,7 @@ struct BasicRenderer {
     bool Runnable();
     void WindowUpdates(void);
     static s32 GetMemoryTypes(u32 typeBits, VkMemoryPropertyFlags propertiesFlags, VkPhysicalDeviceMemoryProperties devProperties);
+    VkFormat GetDepthFormat();
 
     
    
