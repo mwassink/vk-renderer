@@ -21,7 +21,7 @@ VkDescriptorPool RasterizationRenderer::DescriptorPoolGatherPass(u32 nDescriptor
 }
 
 
-VkPipeline RasterizationRenderer::PipelineGatherPass(u32 mode, GBufferAttachments& attachments) {
+VkPipeline RasterizationRenderer::Pipeline(u32 mode, GBufferAttachments& attachments) {
 
     
     VkShaderModule vMod; 
@@ -31,9 +31,11 @@ VkPipeline RasterizationRenderer::PipelineGatherPass(u32 mode, GBufferAttachment
 
 
 
-    rp = RenderPassGatherPass(attachments);
-    VkDescriptorSetLayout dsLayout = DescriptorSetLayoutGatherPass();
-    VkPipelineLayout plLayout = PipelineLayoutGatherPass(dsLayout);
+    renderPassGather = RenderPassGatherPass(attachments);
+    VkDescriptorSetLayout dsLayoutGather = DescriptorSetLayoutGatherPass();
+    VkPipelineLayout plLayoutGather = PipelineLayoutGatherPass(dsLayoutGather);
+    VkDescriptorSetLayout dsLayoutDraw = 
+    VkPipelineLayout plLayoutDraw = PipelineLayoutDrawPass()
 
     VkPipeline pl;
     VkPipelineInputAssemblyStateCreateInfo inAsmCreateInfo = {
@@ -66,8 +68,8 @@ VkPipeline RasterizationRenderer::PipelineGatherPass(u32 mode, GBufferAttachment
 
 
     if (mode == 0) {
-        vMod = ShaderModule("shaders/Model.vert");
-        pMod = ShaderModule("shaders/Model.frag");
+        vMod = ShaderModule("shaders/deferred/Model.vert");
+        pMod = ShaderModule("shaders/deferred/Model.frag");
 
         shaders[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vMod, "main", nullptr };
         shaders[1] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, pMod, "main", nullptr };
@@ -113,8 +115,8 @@ VkPipeline RasterizationRenderer::PipelineGatherPass(u32 mode, GBufferAttachment
             nullptr,
             &cbStateInfo,
             &dStateCreateInfo,
-            plLayout,
-            rp,
+            plLayoutGather,
+            renderPassGather,
             0,
             VK_NULL_HANDLE,
             -1
@@ -127,7 +129,57 @@ VkPipeline RasterizationRenderer::PipelineGatherPass(u32 mode, GBufferAttachment
 
     }
     else if (mode == 1) {
+        vMod = ShaderModule("shaders/deferred/Shading.vert");
+        pMod = ShaderModule("shaders/deferred/Shading.frag");
 
+        shaders[0] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vMod, "main", nullptr };
+        shaders[1] = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, pMod, "main", nullptr };
+
+        VkVertexInputBindingDescription bindingDescription = {
+            0, sizeof(Vector3)
+        };
+        u32 binding = bindingDescription.binding;
+        VkVertexInputAttributeDescription vertexAttrDescrs[] = {
+            {0, binding, VK_FORMAT_R32G32B32_SFLOAT, 0}
+        };
+
+        VkPipelineVertexInputStateCreateInfo tmp = {
+            VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, nullptr, 0, 1, &bindingDescription, 1, vertexAttrDescrs
+        };
+        inStateCInfo = tmp;
+
+
+        VkPipelineColorBlendStateCreateInfo cbStateInfo = {
+            VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO, nullptr, 0, VK_FALSE, VK_LOGIC_OP_COPY, 1, &cBlendState, {0, 0, 0, 0}
+        };
+
+
+
+        VkGraphicsPipelineCreateInfo pci = {
+            VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            nullptr,
+            0,
+            2,
+            shaders,
+            &inStateCInfo,
+            &inAsmCreateInfo,
+            nullptr,
+            &vpStateCrInfo,
+            &rasterizationStateCreateInfo,
+            &multiStateCreateInfo,
+            nullptr,
+            &cbStateInfo,
+            &dStateCreateInfo,
+            ,
+            ,
+            0,
+            VK_NULL_HANDLE,
+            -1
+        };
+
+        if (vkCreateGraphicsPipelines(ctx.dev, VK_NULL_HANDLE, 1, &pci, nullptr, &pl)) {
+            ctx.pform.FatalError("Could not create the basic pipeline!", "Vulkan Runtime Error");
+        }
     }
     else {
         ctx.pform.FatalError("Unknown mode for pipeline", "Vulkan Runtime Error");
@@ -230,6 +282,10 @@ VkRenderPass RasterizationRenderer::RenderPassGatherPass(GBufferAttachments& att
 
     //The effect is all the commands in the source scope have to finish at least the srcStageMask stage in their execution,
     // before any of the commands in the destination scope are even allowed to start the dstStageMask stage of their execution.
+
+    // this will do an image layout transition:
+
+    //Image subresources can be transitioned from one layout to another as part of a memory dependency (e.g. by using an image memory barrier). 
 
     VkSubpassDependency dependencies[2] = {
         {
@@ -349,7 +405,7 @@ void RasterizationRenderer::CreateAttachments(GBufferAttachments* attachments, u
 void RasterizationRenderer::Init() {
     
     CreateAttachments(&gBufferAttachments, ctx.ext.width, ctx.ext.height);
-    pipeline = PipelineGatherPass(0, gBufferAttachments);
+    pipelineGather = PipelineGatherPass(0, gBufferAttachments);
 
     VkImageView attachments[totalAttachments];
     for (int i = 0; i < totalAttachments; i++) attachments[i] = gBufferAttachments.attachments[i].view;
@@ -358,7 +414,7 @@ void RasterizationRenderer::Init() {
         VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
         nullptr,
         0,
-        rp,
+        renderPassGather,
         totalAttachments,
         attachments,
         ctx.ext.width,
@@ -376,5 +432,17 @@ void RasterizationRenderer::Init() {
         ctx.pform.FatalError("Unable to make sampler!", "Vulkan Runtime Error");
     }
 
+
+}
+
+VkDescriptorSetLayout DescriptorSetLayoutDraw() {
+
+}
+
+VkDescriptorPool DescriptorPoolDraw(u32 nDescriptors) {
+
+}
+
+VkPipelineLayout PipelineLayoutDraw(VkDescriptorSetLayout& dsLayout) {
 
 }

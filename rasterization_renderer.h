@@ -80,18 +80,23 @@ struct RasterizationRenderer : public BasicRenderer {
 
     VkDescriptorPool descriptorPool;    
     VkPipelineLayout sceneLayout;
-    VkRenderPass rp;
+    VkRenderPass renderPassGather;
+    VkRenderPass renderPassDraw;
     VkSampler colorSampler;
-    VkPipeline pipeline;
+    VkPipeline pipelineGather;
+    VkPipeline pipelineDraw;
     GBufferAttachments gBufferAttachments;
     
 
 
 
     VkDescriptorSetLayout DescriptorSetLayoutGatherPass();
+    VkDescriptorSetLayout DescriptorSetLayoutDraw();
     VkDescriptorPool DescriptorPoolGatherPass(u32 nDescriptors);
-    VkPipeline PipelineGatherPass(u32 mode, GBufferAttachments& attachments);
+    VkDescriptorPool DescriptorPoolDraw(u32 nDescriptors);
+    VkPipeline Pipeline(u32 mode, GBufferAttachments& attachments);
     VkPipelineLayout PipelineLayoutGatherPass(VkDescriptorSetLayout& dsLayout);
+    VkPipelineLayout PipelineLayoutDraw(VkDescriptorSetLayout& dsLayout);
     void CreateAttachments(GBufferAttachments* attachments, u32 w, u32 h);
     VkRenderPass RenderPassGatherPass(GBufferAttachments& attachments);
     void Init();
