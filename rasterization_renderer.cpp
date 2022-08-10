@@ -1,9 +1,9 @@
-
+\
 #include "rasterization_renderer.h"
 
 VkDescriptorPool RasterizationRenderer::DescriptorPoolGatherPass(u32 nDescriptors) {
     VkDescriptorPool pool;
-    Vector<VkDescriptorPoolSize> szes(7);
+    Vector<VkDescriptorPoolSize> szes(8);
     szes[0] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors }; //shadows
     szes[1] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, nDescriptors }; //matrix
     szes[2] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, nDescriptors }; // light
@@ -11,6 +11,7 @@ VkDescriptorPool RasterizationRenderer::DescriptorPoolGatherPass(u32 nDescriptor
     szes[4] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors}; //diffuse
     szes[5] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors}; //normal
     szes[6] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors}; //specular
+    szes[7] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors};
     
 
     VkDescriptorPoolCreateInfo cInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr, 0, nDescriptors, (u32)szes.sz, szes.data };
@@ -83,7 +84,7 @@ VkPipeline RasterizationRenderer::Pipeline(u32 mode, GBufferAttachments& attachm
             {0, binding, VK_FORMAT_R32G32B32A32_SFLOAT, 0},
             {1, binding, VK_FORMAT_R32G32_SFLOAT, 4 * sizeof(f32)},
             {2, binding, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal)},
-            {3, binding, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, tangent)}
+            {3, binding, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, tangent)},
         };
 
         VkPipelineVertexInputStateCreateInfo tmp = {
@@ -192,7 +193,7 @@ VkPipeline RasterizationRenderer::Pipeline(u32 mode, GBufferAttachments& attachm
 VkDescriptorSetLayout RasterizationRenderer::DescriptorSetLayoutGatherPass(void) {
     VkDescriptorSetLayout basicLayout;
 
-    Vector<VkDescriptorSetLayoutBinding> bindings(6);
+    Vector<VkDescriptorSetLayoutBinding> bindings(7);
 
     bindings[0] = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT }; //matrix
     bindings[1] = { 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // light
@@ -201,7 +202,11 @@ VkDescriptorSetLayout RasterizationRenderer::DescriptorSetLayoutGatherPass(void)
     bindings[3] = { 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // diffuse
     bindings[4] = { 4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; //specular
     bindings[5] = { 5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; //normal
+    bindings[6] = { 6, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT};
+    
 
+
+    
     VkDescriptorSetLayoutCreateInfo setCreateInfo = {
         VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, nullptr, 0, (u32)bindings.sz, bindings.data
 
@@ -249,7 +254,7 @@ VkRenderPass RasterizationRenderer::RenderPassGatherPass(GBufferAttachments& att
         attachmentDescrs[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
         attachmentDescrs[i].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         attachmentDescrs[i].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-        if (i == 5)
+        if (i == numColorAttachments)
         {
             attachmentDescrs[i].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
             attachmentDescrs[i].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -263,7 +268,7 @@ VkRenderPass RasterizationRenderer::RenderPassGatherPass(GBufferAttachments& att
     }
 
     
-    VkAttachmentReference cReferences[5];
+    VkAttachmentReference cReferences[numColorAttachments];
     VkAttachmentReference dReference;
 
     for (int i = 0; i < numColorAttachments; i++) {        
@@ -435,14 +440,27 @@ void RasterizationRenderer::Init() {
 
 }
 
-VkDescriptorSetLayout DescriptorSetLayoutDraw() {
+
+// Question: how do I feed in the results of one pass as samplers into the next
+// need to write a descriptor set, right?
+
+VkDescriptorSetLayout RasterizationRenderer::DescriptorSetLayoutDraw() {
+    
+}
+
+VkDescriptorPool RasterizationRenderer::DescriptorPoolDraw(u32 nDescriptors) {
 
 }
 
-VkDescriptorPool DescriptorPoolDraw(u32 nDescriptors) {
+VkPipelineLayout RasterizationRenderer::PipelineLayoutDraw(VkDescriptorSetLayout& dsLayout) {
 
 }
 
-VkPipelineLayout PipelineLayoutDraw(VkDescriptorSetLayout& dsLayout) {
+void RasterizationRenderer::WriteGatherDescriptorSets(void) {
+    
+}
 
+
+void RasterizationRenderer::WriteDrawDescriptorSets(void) {
+    
 }

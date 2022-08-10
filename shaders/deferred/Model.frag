@@ -38,6 +38,7 @@ layout(location=1) out vec3 diffuseColor;
 layout(location=2) out vec3 specularColor;
 layout(location=3) out vec3 f0Out;
 layout(location=4) out float roughness;
+layout(location=5) out vec4 pos;
 
 
 layout (push_constant) uniform push_constants {

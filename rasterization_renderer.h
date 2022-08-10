@@ -59,10 +59,11 @@ struct GBufferAttachments {
             FBAttachment specularColor;
             FBAttachment f0Out;
             FBAttachment roughness;
+            FBAttachment pos;
             FBAttachment depth;
         };
         struct {
-            FBAttachment attachments[6];
+            FBAttachment attachments[7];
         };
     };
 };
@@ -73,7 +74,7 @@ struct RasterizationRenderer : public BasicRenderer {
 
     static VkFormat const DepthFormat = VK_FORMAT_D16_UNORM;
 
-    static const int numColorAttachments = 5;
+    static const int numColorAttachments = 6;
     static const int numDepthAttachments = 1;
     static const int totalAttachments = numColorAttachments + numDepthAttachments;
 
@@ -87,23 +88,20 @@ struct RasterizationRenderer : public BasicRenderer {
     VkPipeline pipelineDraw;
     GBufferAttachments gBufferAttachments;
     
-
-
-
     VkDescriptorSetLayout DescriptorSetLayoutGatherPass();
     VkDescriptorSetLayout DescriptorSetLayoutDraw();
     VkDescriptorPool DescriptorPoolGatherPass(u32 nDescriptors);
     VkDescriptorPool DescriptorPoolDraw(u32 nDescriptors);
+    // the pipeline code is reused
     VkPipeline Pipeline(u32 mode, GBufferAttachments& attachments);
     VkPipelineLayout PipelineLayoutGatherPass(VkDescriptorSetLayout& dsLayout);
     VkPipelineLayout PipelineLayoutDraw(VkDescriptorSetLayout& dsLayout);
     void CreateAttachments(GBufferAttachments* attachments, u32 w, u32 h);
     VkRenderPass RenderPassGatherPass(GBufferAttachments& attachments);
     void Init();
-
+    void WriteGatherDescriptorSets(void);
+    void WriteDrawDescriptorSets(void);
     
-
-	
 };
 
 

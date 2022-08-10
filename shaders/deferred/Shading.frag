@@ -1,11 +1,29 @@
-#version 450
+#version 460
+
+struct Light {
+  vec4 lightPos; //position in camera space
+  vec4 lightColor;
+  float power;
+  float shininess;    
+};
 
 
-layout(set=0, binding=2) uniform sampler2D roughness;
-layout(set=0, binding=3) uniform sampler2D diffuse;
-layout(set=0, binding=4) uniform sampler2D normal;
-layout(set=0, binding=5) uniform sampler2D specular;
-layout(set=0, binding=1) uniform sampler2D f0;
+layout(set=0, binding=1) uniform lightingUniforms {
+    Light lights[100];
+    vec4 userPos;
+};
+
+
+layout(set=0, binding=2) uniform sampler2D f0tex;
+layout(set=0, binding=3) uniform sampler2D roughnesstex;
+layout(set=0, binding=4) uniform sampler2D diffusetex;
+layout(set=0, binding=5) uniform sampler2D normaltex;
+layout(set=0, binding=6) uniform sampler2D speculartex;
+layout(set=0, binding=7) uniform sampler2D postex;
+
+layout(location=0) in vec4 pos;
+layout(location=1) in vec2 uv;
+
 
 layout(location=0) out vec4 color;
 
@@ -31,7 +49,32 @@ vec3 CookTorrance(float roughness, vec3 n, vec3 l, vec3 h, vec3 f0, vec3 specula
     
 }
 
+layout (push_constant) uniform lightIndex {
+    int lightNum;
+};
+
 
 void main(void) {
+
+    vec3 specular = vec3(0, 0, 0);
+    vec3 diffuse = vec3(0, 0, 0);
+
+    vec3 pos = texture(postex, uv);
+    vec3 l = lights[lightNum].lightPos.xyz - pos;
+    float distanceSquared = dot(l, l);
+    float power = lights[lightNum].power.xyz / (4 * PI * distanceSquared);
+    vec3 diffColor = texture(diffusetex, uv) * power;
+
     
+    float roughness = texture(roughnesstex, uv);
+    vec3 n = texture(normaltex, uv);
+    vec3 specularColor = texture(speculartex, uv);
+    
+    vec3 f0 = texture(f0tex, uv);
+    vec3 v = userPos - pos;
+    vec3 h = normalize(l + v);
+    vec3 specular = CookTorrance(roughness, n, l , h, f0, specularColor);
+
+    
+    color = diffColor + specular;
 }

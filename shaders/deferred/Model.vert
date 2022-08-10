@@ -1,4 +1,4 @@
-#version 450
+#version 460
 
 #define MAX_LIGHTS 100
 #define MAX_OBJECTS 500
@@ -37,7 +37,8 @@ layout (push_constant) uniform modelIndex {
 
 out gl_PerVertex {
     vec4 gl_Position;
-}
+};
+
 
 void main(void) {
     n = normalize(normalMatrix * normal);
