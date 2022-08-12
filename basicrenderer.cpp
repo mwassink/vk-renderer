@@ -1066,8 +1066,8 @@ VkFormat BasicRenderer::GetDepthFormat() {
 }
 
 
-VkDescriptorSetWrite BasicRenderer::DescriptorSetWrite(VkDescriptorSet ds, VkDescriptorType type, u32 bindingNum,
-                                                       void* bufferInfo, bool buffer=true) {
+VkWriteDescriptorSet BasicRenderer::DescriptorSetWrite(VkDescriptorSet ds, VkDescriptorType type, u32 bindingNum,
+    void* bufferInfo, bool buffer=true) {
     VkWriteDescriptorSet writeDescriptorSet = {};
     writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     writeDescriptorSet.dstSet = ds;
@@ -1075,11 +1075,13 @@ VkDescriptorSetWrite BasicRenderer::DescriptorSetWrite(VkDescriptorSet ds, VkDes
     writeDescriptorSet.dstBinding = bindingNum;
     // is a buffer
     if (buffer) {
-        writeDescriptorSet.pBufferInfo = bufferInfo; // should this be 0 all the time?
+        VkDescriptorBufferInfo* bInfo = ( VkDescriptorBufferInfo*)bufferInfo;
+        writeDescriptorSet.pBufferInfo = bInfo; // should this be 0 all the time?
     }
     // then this is an image
     else {
-        writeDescriptorSet.pImageInfo = bufferInfo;
+        VkDescriptorImageInfo* iInfo = (VkDescriptorImageInfo*)bufferInfo;
+        writeDescriptorSet.pImageInfo = iInfo;
     }
 
     writeDescriptorSet.descriptorCount = 1;

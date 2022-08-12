@@ -179,8 +179,8 @@ struct BasicRenderer {
     void WindowUpdates(void);
     static s32 GetMemoryTypes(u32 typeBits, VkMemoryPropertyFlags propertiesFlags, VkPhysicalDeviceMemoryProperties devProperties);
     VkFormat GetDepthFormat();
-    VkDescriptorSetWrite DescriptorSetWrite(VkDescriptorSet ds, VkDescriptorType type, u32 type,
-                                            VkDescriptorBufferInfo* bufferInfo);
+    VkWriteDescriptorSet BasicRenderer::DescriptorSetWrite(VkDescriptorSet ds, VkDescriptorType type, u32 bindingNum,
+        void* bufferInfo, bool buffer = true);
     
 };
 

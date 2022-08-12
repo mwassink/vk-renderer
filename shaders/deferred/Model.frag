@@ -1,9 +1,9 @@
-#version 450
+#version 460
 
 
 #define M_PI 3.1415926535897932384626433832795
 #define MAX_LIGHTS 100
-#define MAX_OBJECTS 500
+#define MAX_OBJECTS_GROUP 5
 
 struct Light {
   vec4 lightPos; //position in camera space
@@ -15,15 +15,10 @@ struct Light {
     
 };
 
-layout(set=0, binding=1) uniform lightingUniforms {
-    Light lights[100];
-};
-
-
-layout(set=0, binding=2) uniform sampler2D roughnessMap[MAX_OBJECTS];
-layout(set=0, binding=3) uniform sampler2D diffuseMap[MAX_OBJECTS];
-layout(set=0, binding=4) uniform sampler2D normalMap[MAX_OBJECTS];
-layout(set=0, binding=5) uniform sampler2D specularMap[MAX_OBJECTS];
+layout(set=0, binding=1) uniform sampler2D roughnessMap;
+layout(set=0, binding=2) uniform sampler2D diffuseMap;
+layout(set=0, binding=3) uniform sampler2D normalMap;
+layout(set=0, binding=4) uniform sampler2D specularMap;
 
 
 
@@ -42,14 +37,9 @@ layout(location=5) out vec4 pos;
 
 
 layout (push_constant) uniform push_constants {
-    int lightNum;
     int objNum;
     vec3 f0;
 };
-
-
-
-
 
 float getDepth(vec4 pIn) {
     float zSample = max(abs(pIn.x), max(abs(pIn.y), abs(pIn.z)));
@@ -57,23 +47,17 @@ float getDepth(vec4 pIn) {
     return  (normZ + 1.0) * 0.5;
 }
 
-    
-float fetchCoeff(vec4 posIn) {
-    vec4 posNew = vec4(posIn.x, posIn.y, -posIn.z, getDepth(posIn));
-    float s = texture(depthMaps[lightNum], posNew); // do not need to divide by w, just use direction vector to sample the cube map
-    return s;   
-}
 
 void main(void) {
     
 
-    vec4 normalRaw = texture(normalMaps[objNum], uvCoord);
+    vec4 normalRaw = texture(normalMaps, uvCoord);
 
     
     worldSpaceNormal = vec3(normalRaw.x * t, normalRaw.y * b, normalRaw.z * n);
-    diffuseColor = texture(diffuseMap[objNum], uvCoord).xyz;
-    specularColor = texture(specularMap[objNum], uvCoord).xyz;
+    diffuseColor = texture(diffuseMap, uvCoord).xyz;
+    specularColor = texture(specularMap, uvCoord).xyz;
     f0Out = f0;
-    roughness = texture(roughnessMap[objNum], uvCoord).xyz;
+    roughness = texture(roughnessMap, uvCoord).xyz;
     
 }

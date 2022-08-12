@@ -13,7 +13,7 @@ struct Matrices {
 
 
 layout(set=0, binding=0) uniform objectUniforms {
-    Matrices matrices[500];
+    Matrices matrices;
 };
 
 

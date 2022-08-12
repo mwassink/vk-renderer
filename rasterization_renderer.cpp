@@ -3,17 +3,13 @@
 
 VkDescriptorPool RasterizationRenderer::DescriptorPoolGatherPass(u32 nDescriptors) {
     VkDescriptorPool pool;
-    Vector<VkDescriptorPoolSize> szes(8);
-    szes[0] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors }; //shadows
-    szes[1] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, nDescriptors }; //matrix
-    szes[2] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, nDescriptors }; // light
-    szes[3] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors}; //roughness
-    szes[4] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors}; //diffuse
-    szes[5] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors}; //normal
-    szes[6] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors}; //specular
-    szes[7] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors};
+    Vector<VkDescriptorPoolSize> szes(5);
+    szes[0] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, nDescriptors }; //matrix
+    szes[1] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors}; //roughness
+    szes[2] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors}; //diffuse
+    szes[3] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors}; //normal
+    szes[4] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors}; //specular
     
-
     VkDescriptorPoolCreateInfo cInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr, 0, nDescriptors, (u32)szes.sz, szes.data };
     if (vkCreateDescriptorPool(ctx.dev, &cInfo, nullptr, &pool) != VK_SUCCESS) {
         ctx.pform.FatalError("Could not create descriptor pool for basic shader", "Vulkan Runtime Error");
@@ -35,8 +31,8 @@ VkPipeline RasterizationRenderer::Pipeline(u32 mode, GBufferAttachments& attachm
     renderPassGather = RenderPassGatherPass(attachments);
     VkDescriptorSetLayout dsLayoutGather = DescriptorSetLayoutGatherPass();
     VkPipelineLayout plLayoutGather = PipelineLayoutGatherPass(dsLayoutGather);
-    VkDescriptorSetLayout dsLayoutDraw = 
-    VkPipelineLayout plLayoutDraw = PipelineLayoutDrawPass()
+    //VkDescriptorSetLayout dsLayoutDraw = 
+    //VkPipelineLayout plLayoutDraw = PipelineLayoutDrawPass()
 
     VkPipeline pl;
     VkPipelineInputAssemblyStateCreateInfo inAsmCreateInfo = {
@@ -193,16 +189,13 @@ VkPipeline RasterizationRenderer::Pipeline(u32 mode, GBufferAttachments& attachm
 VkDescriptorSetLayout RasterizationRenderer::DescriptorSetLayoutGatherPass(void) {
     VkDescriptorSetLayout basicLayout;
 
-    Vector<VkDescriptorSetLayoutBinding> bindings(7);
+    Vector<VkDescriptorSetLayoutBinding> bindings(5);
 
     bindings[0] = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT }; //matrix
-    bindings[1] = { 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // light
-
-    bindings[2] = { 2, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // roughness
-    bindings[3] = { 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // diffuse
-    bindings[4] = { 4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; //specular
-    bindings[5] = { 5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; //normal
-    bindings[6] = { 6, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT};
+    bindings[1] = { 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // roughness
+    bindings[2] = { 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // diffuse
+    bindings[3] = { 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // normal
+    bindings[4] = { 4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // specular
     
 
 
@@ -226,11 +219,11 @@ VkPipelineLayout RasterizationRenderer::PipelineLayoutGatherPass(VkDescriptorSet
     };
 
     VkPushConstantRange pushConstants[2];
-    pushConstants[0].offset = 1;
+    pushConstants[0].offset = 0;
     pushConstants[0].size = sizeof(u32);
     pushConstants[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-    pushConstants[1].offset = 0;
+    pushConstants[1].offset = 1;
     pushConstants[1].size = sizeof(PushGatherFrag);
     pushConstants[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
@@ -410,7 +403,7 @@ void RasterizationRenderer::CreateAttachments(GBufferAttachments* attachments, u
 void RasterizationRenderer::Init() {
     
     CreateAttachments(&gBufferAttachments, ctx.ext.width, ctx.ext.height);
-    pipelineGather = PipelineGatherPass(0, gBufferAttachments);
+    pipelineGather = Pipeline(0, gBufferAttachments);
 
     VkImageView attachments[totalAttachments];
     for (int i = 0; i < totalAttachments; i++) attachments[i] = gBufferAttachments.attachments[i].view;
@@ -445,22 +438,97 @@ void RasterizationRenderer::Init() {
 // need to write a descriptor set, right?
 
 VkDescriptorSetLayout RasterizationRenderer::DescriptorSetLayoutDraw() {
+
+    VkDescriptorSetLayout drawLayout;
+
+    Vector<VkDescriptorSetLayoutBinding> bindings(8);
+
+    bindings[0] = { 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_VERTEX_BIT }; //matrix
+    bindings[1] = { 1, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // light
+
+    bindings[2] = { 2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1,   VK_SHADER_STAGE_FRAGMENT_BIT }; // f0
+    bindings[3] = { 3, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // roughness
+    bindings[4] = { 4, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // diffuse
+    bindings[5] = { 5, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; //specular
+    bindings[6] = { 6, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; //normal
+    bindings[7] = { 7, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, VK_SHADER_STAGE_FRAGMENT_BIT }; // pos
+
+
+
+
+    VkDescriptorSetLayoutCreateInfo setCreateInfo = {
+        VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, nullptr, 0, (u32)bindings.sz, bindings.data
+
+    };
+
+    if (vkCreateDescriptorSetLayout(ctx.dev, &setCreateInfo, nullptr, &basicLayout) != VK_SUCCESS) {
+        ctx.pform.FatalError("Unable to create basic descriptor set layout", "Vulkan Runtime Error");
+    }
+
+    return basicLayout;
+
+
     
 }
 
 VkDescriptorPool RasterizationRenderer::DescriptorPoolDraw(u32 nDescriptors) {
 
+    VkDescriptorPool pool;
+    Vector<VkDescriptorPoolSize> szes(8);
+    szes[0] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, nDescriptors }; // matrix
+    szes[1] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, nDescriptors }; // light
+    szes[2] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors }; // f0tex
+    szes[3] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors }; //roughness
+    szes[4] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors }; //diffuse
+    szes[5] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors }; //normal
+    szes[6] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors }; //specular
+    szes[7] = { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, nDescriptors }; // pos
+
+
+    VkDescriptorPoolCreateInfo cInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr, 0, nDescriptors, (u32)szes.sz, szes.data };
+    if (vkCreateDescriptorPool(ctx.dev, &cInfo, nullptr, &pool) != VK_SUCCESS) {
+        ctx.pform.FatalError("Could not create descriptor pool for basic shader", "Vulkan Runtime Error");
+    }
+    return pool;
 }
 
 VkPipelineLayout RasterizationRenderer::PipelineLayoutDraw(VkDescriptorSetLayout& dsLayout) {
 
+
+    VkPipelineLayout plLayout;
+    VkPipelineLayoutCreateInfo layoutCreateInfo = {
+        VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, nullptr, 0, 1, &dsLayout, 0, nullptr
+    };
+    VkPushConstantRange pushConstants[1];
+    pushConstants[0].offset = 0;
+    pushConstants[0].size = sizeof(u32);
+    pushConstants[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    layoutCreateInfo.pPushConstantRanges = pushConstants;
+    layoutCreateInfo.pushConstantRangeCount = 1;
+    if (vkCreatePipelineLayout(ctx.dev, &layoutCreateInfo, nullptr, &plLayout) != VK_SUCCESS) {
+        ctx.pform.FatalError("Unable to create a basic pipeline layout", "Vulkan Runtime Error");
+    }
+    return plLayout;
+
+
+
+
 }
 
-void RasterizationRenderer::WriteGatherDescriptorSets(void) {
-    
-}
+void RasterizationRenderer::WriteDescriptorSets(VkDescriptorSet& ds, Buffer* buffers, u32* sizes, Texture* textures  ) {
 
+    const int buffersNum = 1;
+    const int numImages = 4;
+    // loop over the buffers and make writes for all of them
+    VkWriteDescriptorSet writes[buffersNum + numImages];
+    for (int i = 0; i < buffersNum; i++) {
+        VkDescriptorBufferInfo uniforms = { uniformBasicMegaLightPool.handle, 0, sizes[i] };
+        writes[i] = DescriptorSetWrite(ds, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, i, &uniforms, true);
+    }
 
-void RasterizationRenderer::WriteDrawDescriptorSets(void) {
-    
+    for (int i = 0; i < numImages; i++) {
+        VkDescriptorImageInfo imgInfo = { textures[i].sampler, textures[i].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+        writes[i + buffersNum] = DescriptorSetWrite(ds, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, i + buffersNum, &imgInfo, false);
+    }
 }

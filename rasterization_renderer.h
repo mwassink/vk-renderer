@@ -99,8 +99,7 @@ struct RasterizationRenderer : public BasicRenderer {
     void CreateAttachments(GBufferAttachments* attachments, u32 w, u32 h);
     VkRenderPass RenderPassGatherPass(GBufferAttachments& attachments);
     void Init();
-    void WriteGatherDescriptorSets(void);
-    void WriteDrawDescriptorSets(void);
+    void WriteDescriptorSets(VkDescriptorSet& ds, Buffer* buffers, u32* sizes, Texture* textures);
     
 };
 
