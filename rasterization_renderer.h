@@ -68,6 +68,11 @@ struct GBufferAttachments {
     };
 };
 
+struct Scene {
+    GBufferAttachments attachments;
+
+};
+
 
 
 struct RasterizationRenderer : public BasicRenderer {
@@ -100,6 +105,9 @@ struct RasterizationRenderer : public BasicRenderer {
     VkRenderPass RenderPassGatherPass(GBufferAttachments& attachments);
     void Init();
     void WriteDescriptorSets(VkDescriptorSet& ds, Buffer* buffers, u32* sizes, Texture* textures);
+    void BuildScene(Scene* scene);
+    void RenderDirect(Scene* scene);
+
     
 };
 

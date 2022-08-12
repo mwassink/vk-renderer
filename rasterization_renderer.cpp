@@ -1,4 +1,4 @@
-\
+
 #include "rasterization_renderer.h"
 
 VkDescriptorPool RasterizationRenderer::DescriptorPoolGatherPass(u32 nDescriptors) {
@@ -58,8 +58,7 @@ VkPipeline RasterizationRenderer::Pipeline(u32 mode, GBufferAttachments& attachm
 
     VkDynamicState dState[] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 
-    VkPipelineDynamicStateCreateInfo dStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO, nullptr,
-        0, 2, dState };
+    VkPipelineDynamicStateCreateInfo dStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO, nullptr, 0, 2, dState };
 
 
 
@@ -531,4 +530,17 @@ void RasterizationRenderer::WriteDescriptorSets(VkDescriptorSet& ds, Buffer* buf
         VkDescriptorImageInfo imgInfo = { textures[i].sampler, textures[i].view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
         writes[i + buffersNum] = DescriptorSetWrite(ds, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, i + buffersNum, &imgInfo, false);
     }
+}
+
+
+
+void RasterizationRenderer::BuildScene(Scene* scene) {
+
+
+}
+
+
+
+void RasterizationRenderer::RenderDirect(Scene* scene) {
+
 }
