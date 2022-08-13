@@ -10,12 +10,14 @@ struct Vertex{
             f32 u; f32 v;
             f32 nx; f32 ny; f32 nz;
             f32 tx; f32 ty; f32 tz;
+            f32 handedness;
         };
         struct {
             Vector4 coord;
             Vector2 uv;
             Vector3 normal;
             Vector3 tangent;
+            f32 handedness;
         };
     };
 };
@@ -24,14 +26,20 @@ struct Model {
 	Texture roughnessMap;
 	Texture standardTexture;
 	Texture normalMap;
-	Texture environmentMap;
     Vector<Vertex> vertices;
+    Vector<u32> indices;
     BasicMatrices matrices;
     VkDescriptorSet descriptorSet;
-    Quaternion rotation;
-    f32 scale;
+
+
+    Buffer vertexBuffer;
+    Buffer indexBuffer;
     u32 numPrimitives;
     u32 matrixBufferOffset;
+
+    Quaternion rotation;
+    f32 scale;
+    Model() = default;
 };
 
 struct FBAttachment {
@@ -71,6 +79,9 @@ struct GBufferAttachments {
 struct Scene {
     GBufferAttachments attachments;
 
+    Vector<Model> models;
+    Vector<Light> lights;
+
 };
 
 
@@ -107,8 +118,14 @@ struct RasterizationRenderer : public BasicRenderer {
     void WriteDescriptorSets(VkDescriptorSet& ds, Buffer* buffers, u32* sizes, Texture* textures);
     void BuildScene(Scene* scene);
     void RenderDirect(Scene* scene);
+    Model MakeModel(const char* roughnessPath, const char* texturePath, const char* normalsPath, const char* objPath,
+        BasicMatrices& matrices, u32 bufferIndex);
 
-    
+
+
+    Vector<Vertex> UpgradeVertices(Vector<BasicVertexData>& basicVertices, Vector<u32> indexList);
+
+
 };
 
 

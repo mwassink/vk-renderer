@@ -535,12 +535,100 @@ void RasterizationRenderer::WriteDescriptorSets(VkDescriptorSet& ds, Buffer* buf
 
 
 void RasterizationRenderer::BuildScene(Scene* scene) {
-
-
+    
 }
 
 
 
 void RasterizationRenderer::RenderDirect(Scene* scene) {
 
+}
+
+
+Vector<Vertex> RasterizationRenderer::UpgradeVertices(Vector<BasicVertexData>& basicVertices, Vector<u32> indexList) {
+
+    Vector<Vertex> normalVerts(basicVertices.sz);
+    Vector <BasicVertexData>& verts = basicVertices;
+    Vector<Vector3> bitangents(basicVertices.sz);
+    for (int i = 0; i < basicVertices.sz; ++i) {
+        normalVerts[i].coord = verts[i].coord;
+        normalVerts[i].normal = verts[i].normal;
+        normalVerts[i].tangent = Vector3(0.0f, 0.0f, 0.0f);
+        normalVerts[i].uv = verts[i].uv;
+        normalVerts[i].handedness = 1.0f;
+        bitangents[i] = Vector3(0.0f, 0.0f, 0.0f);
+    }
+    for (int i = 0; i < basicVertices.sz / 3; ++i) {
+        u32 i0 = indexList[i * 3], i1 = indexList[i * 3 + 1], i2 = indexList[i * 3 + 2];
+        Vector3 p0 = verts[i0].coord.v3();
+        Vector3 p1 = verts[i1].coord.v3();
+        Vector3 p2 = verts[i2].coord.v3();
+
+        Vector2 uv0 = verts[i0].uv;
+        Vector2 uv1 = verts[i1].uv;
+        Vector2 uv2 = verts[i2].uv;
+
+        Vector3 q1 = p1 - p0;
+        Vector3 q2 = p2 - p0;
+        f32 s1 = uv1.u - uv0.u, s2 = uv2.u - uv0.u;
+        f32 t1 = uv1.v - uv0.v, t2 = uv2.v - uv0.v;
+
+        f32 adjScale = 1 / (s1 * t2 - s2 * t1);
+        Matrix3 tsmat = Matrix3(t2, -t1, 0, -s2, s1, 0, 0, 0, 0);
+        //tsmat:
+        // t2 -t1 0
+        // -s2 s1 0
+        // 0   0  0
+        Matrix3 qmat = Matrix3(q1, q2, Vector3(0, 0, 0));
+        qmat = qmat.transpose();
+        // <- q1 ->
+        // <- q2 ->
+        // 0  0  0
+        Matrix3 res = tsmat * qmat;
+        res *= adjScale;
+
+        res = res.transpose();
+
+        Vector3 t = res[0];
+        Vector3 b = res[1];
+
+        normalVerts[i0].tangent = normalVerts[i0].tangent + t;
+        bitangents[i0] = bitangents[i0] + b;
+        normalVerts[i1].tangent = normalVerts[i1].tangent + t;
+        bitangents[i1] = bitangents[i1] + b;
+        normalVerts[i2].tangent = normalVerts[i2].tangent + t;
+        bitangents[i2] = bitangents[i2] + b;
+    }
+    for (int i = 0; i < indexList.sz; ++i) {
+        Vector3 t = normalVerts[i].tangent;
+        Vector3& n = normalVerts[i].normal;
+        normalVerts[i].tangent = t - Dot(normalVerts[i].normal, t) * normalVerts[i].normal;
+        normalVerts[i].tangent.normalize();
+        if (Dot(Cross(t, bitangents[i]), n) < 0.0f) {
+            normalVerts[i].handedness = -1.0f;
+        }
+    }
+
+    basicVertices.release();
+    return normalVerts;
+
+}
+
+
+Model RasterizationRenderer::MakeModel(const char* roughnessPath, const char* texturePath, const char* normalsPath, const char* objPath,
+    BasicMatrices& matrices, u32 bufferIndex) {
+    BasicModel tmp = LoadModelObj(objPath, texturePath);
+
+    Model model;
+    Vector<Vertex> vertices;
+    
+    model.roughnessMap = MakeTexture(roughnessPath, VK_FORMAT_R8_UNORM, 1);
+    model.standardTexture = tmp.modelTexture;
+    model.vertices = UpgradeVertices(tmp.vData);
+    model.vertexBuffer = VertexBuffer(RoundUp(model.vertices.sz * sizeof(Vertex)), model.vertices.data);
+    model.indexBuffer = IndexBuffer(RoundUp(model.indices.sz * sizeof(u32)), model.indices.data);
+    model.normalMap = MakeTexture(normalsPath, VK_FORMAT_R8G8B8_UNORM);
+    model.matrices = matrices;
+
+    return model;
 }

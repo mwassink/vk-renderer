@@ -133,8 +133,8 @@ struct BasicRenderer {
     Buffer StagingBuffer( u32 sz, void* data);
     Buffer VertexBuffer( u32 sz, void* data);
     void toGPU(void* from, VkDeviceMemory mem, u32 sz );
-    Texture RGBATexture(const char* fileName);
-    void FillTexture( void* data, Texture* tex);
+    Texture MakeTexture(const char* fileName, VkFormat format = VK_FORMAT_R8G8B8A8_UNORM, u32 numComps = 4);
+    void FillTexture( void* data, Texture* tex, VkFormat format);
     void AllocMemoryImage(u32 sz, VkImage handle, VkMemoryPropertyFlagBits wantedProperty, VkDeviceMemory* mem);
 
     VkDescriptorSetLayout BasicDescriptorSetLayout(void);

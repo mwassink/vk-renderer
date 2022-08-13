@@ -188,17 +188,17 @@ void BasicRenderer::toGPU(void* data, VkDeviceMemory mem, u32 sz ) {
     
 }
 
-Texture BasicRenderer::RGBATexture(const char* fileName) {
+Texture BasicRenderer::MakeTexture(const char* fileName, VkFormat format= VK_FORMAT_R8G8B8A8_UNORM, u32 numComps=4) {
     Texture tex;
     FileData data = ctx.pform.ReadBinaryFile(fileName);
     int w, h, comps;
-    u8* imageData = stbi_load_from_memory( (u8*) data.data, data.size, &w, &h, &comps, 4  );
+    u8* imageData = stbi_load_from_memory( (u8*) data.data, data.size, &w, &h, &comps, numComps );
     ctx.pform.ReleaseFileData(&data);
-    if (!imageData || !(w > 0 && h > 0 && comps == 4)) {
+    if (!imageData || !(w > 0 && h > 0 && comps == numComps)) {
         ctx.pform.FatalError(fileName, "Error while reading texture");
     }
 
-    tex.size = w * h * 4;
+    tex.size = w * h * numComps;
     tex.w = w;
     tex.h = h;
     tex.comps = comps;
@@ -209,7 +209,7 @@ Texture BasicRenderer::RGBATexture(const char* fileName) {
         nullptr,                                              
         0,                                                    
         VK_IMAGE_TYPE_2D,                                     
-        VK_FORMAT_R8G8B8A8_UNORM,                             
+        format,                             
         {                                                     
             tex.w,                                                
             tex.h,                                               
@@ -231,7 +231,7 @@ Texture BasicRenderer::RGBATexture(const char* fileName) {
         ctx.pform.FatalError("Vk Image Creation Error ", "VK Runtime Error");
     }
 
-    FillTexture(imageData, &tex);
+    FillTexture(imageData, &tex, format);
     return tex;
 }
 
@@ -259,7 +259,7 @@ void BasicRenderer::AllocMemoryImage(u32 sz, VkImage handle, VkMemoryPropertyFla
     ctx.pform.FatalError("Error while allocating image memory", "Vulkan Runtime Error");
 }
 
-void BasicRenderer::FillTexture(void* data, Texture* tex) {
+void BasicRenderer::FillTexture(void* data, Texture* tex, VkFormat format) {
     u32 sz = RoundUp(tex->comps * tex->w * tex->h);
     AllocMemoryImage(sz, tex->imageHandle, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, &tex->mem);
     if ( vkBindImageMemory(ctx.dev, tex->imageHandle, tex->mem, 0) != VK_SUCCESS) {
@@ -271,7 +271,7 @@ void BasicRenderer::FillTexture(void* data, Texture* tex) {
         nullptr,
         0,
         tex->imageHandle, VK_IMAGE_VIEW_TYPE_2D,
-        VK_FORMAT_R8G8B8A8_UNORM, 
+        format, 
         {
             VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY ,VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY
         },
@@ -674,7 +674,7 @@ BasicModel BasicRenderer::LoadModelObj(const char* f, const char* imageFile) {
     fclose(fp);
     model.indices = indices;
     model.vData = verticesList;
-    model.modelTexture = RGBATexture(imageFile);
+    model.modelTexture = MakeTexture(imageFile);
     model.numPrimitives = indices.sz;
     
     
