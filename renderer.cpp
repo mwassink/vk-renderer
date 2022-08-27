@@ -1,7 +1,7 @@
 
-#include "rasterization_renderer.h"
+#include "renderer.h"
 
-VkDescriptorPool RasterizationRenderer::DescriptorPoolGatherPass(u32 nDescriptors) {
+VkDescriptorPool Renderer::DescriptorPoolGatherPass(u32 nDescriptors) {
     VkDescriptorPool pool;
     Vector<VkDescriptorPoolSize> szes(5);
     szes[0] = { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, nDescriptors }; //matrix
@@ -18,7 +18,7 @@ VkDescriptorPool RasterizationRenderer::DescriptorPoolGatherPass(u32 nDescriptor
 }
 
 
-VkPipeline RasterizationRenderer::Pipeline(u32 mode, GBufferAttachments& attachments) {
+VkPipeline Renderer::Pipeline(u32 mode, GBufferAttachments& attachments) {
 
     
     VkShaderModule vMod; 
@@ -185,7 +185,7 @@ VkPipeline RasterizationRenderer::Pipeline(u32 mode, GBufferAttachments& attachm
 }
 
 
-VkDescriptorSetLayout RasterizationRenderer::DescriptorSetLayoutGatherPass(void) {
+VkDescriptorSetLayout Renderer::DescriptorSetLayoutGatherPass(void) {
     VkDescriptorSetLayout basicLayout;
 
     Vector<VkDescriptorSetLayoutBinding> bindings(5);
@@ -211,7 +211,7 @@ VkDescriptorSetLayout RasterizationRenderer::DescriptorSetLayoutGatherPass(void)
     return basicLayout;
 }
 
-VkPipelineLayout RasterizationRenderer::PipelineLayoutGatherPass(VkDescriptorSetLayout& dsLayout) {
+VkPipelineLayout Renderer::PipelineLayoutGatherPass(VkDescriptorSetLayout& dsLayout) {
     VkPipelineLayout plLayout;
     VkPipelineLayoutCreateInfo layoutCreateInfo = {
         VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, nullptr, 0, 1, &dsLayout, 0, nullptr
@@ -236,7 +236,7 @@ VkPipelineLayout RasterizationRenderer::PipelineLayoutGatherPass(VkDescriptorSet
 }
 
 
-VkRenderPass RasterizationRenderer::RenderPassGatherPass(GBufferAttachments& attachments) {
+VkRenderPass Renderer::RenderPassGatherPass(GBufferAttachments& attachments) {
     VkRenderPass rp;
     VkAttachmentDescription attachmentDescrs[totalAttachments];
 
@@ -389,7 +389,7 @@ FBAttachment::FBAttachment(VkFormat format, VkImageUsageFlags flags, u32 w, u32 
     vkCreateImageView(ctx.dev, &viewCreateInfo, nullptr, &this->view);
 }
 
-void RasterizationRenderer::CreateAttachments(GBufferAttachments* attachments, u32 w, u32 h) {
+void Renderer::CreateAttachments(GBufferAttachments* attachments, u32 w, u32 h) {
     VkFormat depthFormat = GetDepthFormat();
     attachments->diffuseColor = FBAttachment(VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, w, h, ctx);
     attachments->f0Out = FBAttachment(VK_FORMAT_R16G16B16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, w, h, ctx);
@@ -399,7 +399,7 @@ void RasterizationRenderer::CreateAttachments(GBufferAttachments* attachments, u
     attachments->depth = FBAttachment(depthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, w, h, ctx);
 }
 
-void RasterizationRenderer::Init() {
+void Renderer::Init() {
     
     CreateAttachments(&gBufferAttachments, ctx.ext.width, ctx.ext.height);
     pipelineGather = Pipeline(0, gBufferAttachments);
@@ -436,7 +436,7 @@ void RasterizationRenderer::Init() {
 // Question: how do I feed in the results of one pass as samplers into the next
 // need to write a descriptor set, right?
 
-VkDescriptorSetLayout RasterizationRenderer::DescriptorSetLayoutDraw() {
+VkDescriptorSetLayout Renderer::DescriptorSetLayoutDraw() {
 
     VkDescriptorSetLayout drawLayout;
 
@@ -470,7 +470,7 @@ VkDescriptorSetLayout RasterizationRenderer::DescriptorSetLayoutDraw() {
     
 }
 
-VkDescriptorPool RasterizationRenderer::DescriptorPoolDraw(u32 nDescriptors) {
+VkDescriptorPool Renderer::DescriptorPoolDraw(u32 nDescriptors) {
 
     VkDescriptorPool pool;
     Vector<VkDescriptorPoolSize> szes(8);
@@ -491,7 +491,7 @@ VkDescriptorPool RasterizationRenderer::DescriptorPoolDraw(u32 nDescriptors) {
     return pool;
 }
 
-VkPipelineLayout RasterizationRenderer::PipelineLayoutDraw(VkDescriptorSetLayout& dsLayout) {
+VkPipelineLayout Renderer::PipelineLayoutDraw(VkDescriptorSetLayout& dsLayout) {
 
 
     VkPipelineLayout plLayout;
@@ -515,14 +515,13 @@ VkPipelineLayout RasterizationRenderer::PipelineLayoutDraw(VkDescriptorSetLayout
 
 }
 
-void RasterizationRenderer::WriteDescriptorSets(VkDescriptorSet& ds, Buffer* buffers, u32* sizes, Texture* textures  ) {
+void Renderer::WriteDescriptorSets(VkDescriptorSet& ds, Buffer* buffers, u32* offsets, u32* sizes, Texture* textures, u32 buffersNum, u32 numImages  ) {
 
-    const int buffersNum = 1;
-    const int numImages = 4;
+
     // loop over the buffers and make writes for all of them
-    VkWriteDescriptorSet writes[buffersNum + numImages];
+    Vector<VkWriteDescriptorSet> writes(buffersNum + numImages);
     for (int i = 0; i < buffersNum; i++) {
-        VkDescriptorBufferInfo uniforms = { uniformBasicMegaLightPool.handle, 0, sizes[i] };
+        VkDescriptorBufferInfo uniforms = { buffers[i].handle, offsets[i], sizes[i]};
         writes[i] = DescriptorSetWrite(ds, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, i, &uniforms, true);
     }
 
@@ -533,19 +532,28 @@ void RasterizationRenderer::WriteDescriptorSets(VkDescriptorSet& ds, Buffer* buf
 }
 
 
+void Renderer::WriteModelGatherDescriptors(Model& model) {
+    const int numBuffers = 1;
+    const int numImages = 4;
 
-void RasterizationRenderer::BuildScene(Scene* scene) {
+    u32 mSize = sizeof(BasicMatrices);
+    WriteDescriptorSets(model.descriptorSetGather, &unifiedMatrixBuffer, &model.matrixBufferOffset, &mSize, model.textures, numBuffers, numImages);
+}
+
+
+
+void Renderer::BuildScene(Scene* scene) {
     
 }
 
 
 
-void RasterizationRenderer::RenderDirect(Scene* scene) {
+void Renderer::RenderDirect(Scene* scene) {
 
 }
 
 
-Vector<Vertex> RasterizationRenderer::UpgradeVertices(Vector<BasicVertexData>& basicVertices, Vector<u32> indexList) {
+Vector<Vertex> Renderer::UpgradeVertices(Vector<BasicVertexData>& basicVertices, Vector<u32> indexList) {
 
     Vector<Vertex> normalVerts(basicVertices.sz);
     Vector <BasicVertexData>& verts = basicVertices;
@@ -614,9 +622,25 @@ Vector<Vertex> RasterizationRenderer::UpgradeVertices(Vector<BasicVertexData>& b
 
 }
 
+VkDescriptorSet Renderer::DescriptorSetGather() {
+    VkDescriptorSet set;
 
-Model RasterizationRenderer::MakeModel(const char* roughnessPath, const char* texturePath, const char* normalsPath, const char* objPath,
-    BasicMatrices& matrices, u32 bufferIndex) {
+
+
+    return set;
+}
+
+
+VkDescriptorSet Renderer::DescriptorSetDraw() {
+    VkDescriptorSet set;
+
+    
+    return set;
+}
+
+
+Model Renderer::MakeModel(const char* roughnessPath, const char* texturePath, const char* normalsPath, const char* objPath,
+    BasicMatrices& matrices, u32 bufferOffset) {
     BasicModel tmp = LoadModelObj(objPath, texturePath);
 
     Model model;
@@ -624,11 +648,15 @@ Model RasterizationRenderer::MakeModel(const char* roughnessPath, const char* te
     
     model.roughnessMap = MakeTexture(roughnessPath, VK_FORMAT_R8_UNORM, 1);
     model.standardTexture = tmp.modelTexture;
-    model.vertices = UpgradeVertices(tmp.vData);
+    model.vertices = UpgradeVertices(tmp.vData, tmp.indices);
+    model.indices = tmp.indices;
     model.vertexBuffer = VertexBuffer(RoundUp(model.vertices.sz * sizeof(Vertex)), model.vertices.data);
     model.indexBuffer = IndexBuffer(RoundUp(model.indices.sz * sizeof(u32)), model.indices.data);
     model.normalMap = MakeTexture(normalsPath, VK_FORMAT_R8G8B8_UNORM);
     model.matrices = matrices;
 
+    model.descriptorSetGather = DescriptorSetGather();
+    
+    WriteModelGatherDescriptors(model);
     return model;
 }

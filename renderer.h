@@ -23,14 +23,21 @@ struct Vertex{
 };
 
 struct Model {
-	Texture roughnessMap;
-	Texture standardTexture;
-	Texture normalMap;
+	
+    union {
+        struct {
+            Texture roughnessMap;
+            Texture standardTexture;
+            Texture normalMap;
+            Texture specularMap;
+        };
+        Texture textures[4];
+
+    };
     Vector<Vertex> vertices;
     Vector<u32> indices;
     BasicMatrices matrices;
-    VkDescriptorSet descriptorSet;
-
+    VkDescriptorSet descriptorSetGather;
 
     Buffer vertexBuffer;
     Buffer indexBuffer;
@@ -86,7 +93,7 @@ struct Scene {
 
 
 
-struct RasterizationRenderer : public BasicRenderer {
+struct Renderer : public BasicRenderer {
 
     static VkFormat const DepthFormat = VK_FORMAT_D16_UNORM;
 
@@ -103,11 +110,14 @@ struct RasterizationRenderer : public BasicRenderer {
     VkPipeline pipelineGather;
     VkPipeline pipelineDraw;
     GBufferAttachments gBufferAttachments;
+    Buffer unifiedMatrixBuffer;
     
     VkDescriptorSetLayout DescriptorSetLayoutGatherPass();
     VkDescriptorSetLayout DescriptorSetLayoutDraw();
     VkDescriptorPool DescriptorPoolGatherPass(u32 nDescriptors);
     VkDescriptorPool DescriptorPoolDraw(u32 nDescriptors);
+    VkDescriptorSet DescriptorSetGather();
+    VkDescriptorSet DescriptorSetDraw();
     // the pipeline code is reused
     VkPipeline Pipeline(u32 mode, GBufferAttachments& attachments);
     VkPipelineLayout PipelineLayoutGatherPass(VkDescriptorSetLayout& dsLayout);
@@ -115,15 +125,17 @@ struct RasterizationRenderer : public BasicRenderer {
     void CreateAttachments(GBufferAttachments* attachments, u32 w, u32 h);
     VkRenderPass RenderPassGatherPass(GBufferAttachments& attachments);
     void Init();
-    void WriteDescriptorSets(VkDescriptorSet& ds, Buffer* buffers, u32* sizes, Texture* textures);
+    void WriteDescriptorSets(VkDescriptorSet& ds, Buffer* buffers, u32* offsets, u32* sizes, Texture* textures, u32 buffersNum, u32 numImages);
     void BuildScene(Scene* scene);
     void RenderDirect(Scene* scene);
     Model MakeModel(const char* roughnessPath, const char* texturePath, const char* normalsPath, const char* objPath,
-        BasicMatrices& matrices, u32 bufferIndex);
-
-
+        BasicMatrices& matrices, u32 bufferOffset);
+    void WriteModelGatherDescriptors(Model& model);
 
     Vector<Vertex> UpgradeVertices(Vector<BasicVertexData>& basicVertices, Vector<u32> indexList);
+
+
+
 
 
 };
