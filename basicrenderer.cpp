@@ -871,6 +871,17 @@ void BasicRenderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     }
 
     VkPipelineStageFlags v = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    /*typedef struct VkSubmitInfo {
+        VkStructureType                sType;
+        const void*                    pNext;
+        uint32_t                       waitSemaphoreCount;
+        const VkSemaphore*             pWaitSemaphores;
+        const VkPipelineStageFlags*    pWaitDstStageMask;
+        uint32_t                       commandBufferCount;
+        const VkCommandBuffer*         pCommandBuffers;
+        uint32_t                       signalSemaphoreCount;
+        const VkSemaphore*             pSignalSemaphores;
+    } VkSubmitInfo; */
     VkSubmitInfo sInfo = {
       VK_STRUCTURE_TYPE_SUBMIT_INFO, nullptr, 1,
       &pfd->presentOK, &v,
@@ -880,6 +891,17 @@ void BasicRenderer::DrawBasicFlatScene(BasicFlatScene* scene) {
     if (vkQueueSubmit(ctx.graphicsPresentQueue, 1, &sInfo, pfd->fence) != VK_SUCCESS) {
       return;
     }
+
+    /* typedef struct VkPresentInfoKHR {
+    VkStructureType          sType;
+    const void*              pNext;
+    uint32_t                 waitSemaphoreCount;
+    const VkSemaphore*       pWaitSemaphores;
+    uint32_t                 swapchainCount;
+    const VkSwapchainKHR*    pSwapchains;
+    const uint32_t*          pImageIndices;
+    VkResult*                pResults;
+    } VkPresentInfoKHR;*/
     VkPresentInfoKHR pInfo = {
       VK_STRUCTURE_TYPE_PRESENT_INFO_KHR, nullptr, 1,
       &pfd->renderingDone, 1, &ctx.sc.handle,

@@ -29,16 +29,11 @@ struct Texture {
 
 
 struct BasicRenderData {
-    
-
     VkDescriptorSet descriptorSet;
     VkDescriptorSetLayout dsLayout;
     VkPipelineLayout plLayout;
     VkPipeline pipeline;
     VkRenderPass rPass;
-    
-
-    
 };
 
 struct BasicVertexData {
@@ -120,7 +115,6 @@ struct BasicRenderer {
     Buffer uniformBasicHostLightPool;
     Buffer uniformBasicMegaLightPool;
 
-    Buffer basicLightBuffer;
     VkDescriptorPool basicDescriptorPool;
     VkDescriptorSetLayout basicLayout;
     bool uniformPoolNeedsCopy = true;

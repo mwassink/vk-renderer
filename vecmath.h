@@ -370,7 +370,7 @@ struct Quaternion {
     
 };
 
-/* What is the simplest way to represent this? other than its worldspace transform*/
+/* (NOTE) could represent this with 1. rotation 2. scale 3. offset */
 struct CoordinateSpace {
     Vector3 origin; // in world space coordinates
     Vector3 r, s, t;
